@@ -32,14 +32,14 @@ management.
 
 # Prerequisites
 
-[RabbitMQ Server](https://github.com/tiredofit/docker-rabbitmq)
-[MariaDB Server](https://github.com/tiredofit/docker-mariadb)
-[Spamassassin](https://github.com/tiredofit/docker-spamassassin) *optional*
-[Clam Antivirus](https://github.com/tiredofit/docker-clamav) *optional*
+- [RabbitMQ Server](https://github.com/tiredofit/docker-rabbitmq)
+- [MariaDB Server](https://github.com/tiredofit/docker-mariadb)
+- [Spamassassin](https://github.com/tiredofit/docker-spamassassin) *optional*
+- [Clam Antivirus](https://github.com/tiredofit/docker-clamav) *optional*
 
 # Installation
 
-Automated builds of the image are available on [Registry](https://hub.docker.com/tiredofit/postal) and is the recommended method of 
+Automated builds of the image are available on [Registry](https://hub.docker.com/r/tiredofit/postal) and is the recommended method of 
 installation.
 
 
