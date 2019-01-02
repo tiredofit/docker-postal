@@ -1,4 +1,4 @@
-FROM registry.selfdesign.org/docker/ruby:2.4-alpine-latest
+FROM tiredofit/ruby:2.4-alpine-latest
 LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
 
 ENV ENABLE_CRON=FALSE \
