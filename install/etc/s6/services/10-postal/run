@@ -1,18 +1,9 @@
 #!/usr/bin/with-contenv bash
 
-while [ ! -f /tmp/state/10-postal-init ]
-do
-  sleep 1
-done
+source /assets/functions/*
+PROCESS_NAME="postal"
+check_initialized
+liftoff
 
-
-if [ ! -f /tmp/state/10-postal ]; then
-
-        mkdir -p /tmp/state/
-	echo 'Initialization Complete' >/tmp/state/10-postal
-fi
-
-echo ''
-echo '** [postal] Starting postal'
+print_info "Starting postal"
 exec /opt/postal/bin/postal run
-

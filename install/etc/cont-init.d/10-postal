@@ -1,5 +1,8 @@
 #!/usr/bin/with-contenv /bin/bash
 
+source /assets/functions/*
+PROCESS_NAME="postal"
+
 ### Set Defaults
 CLAMAV_PORT=${CLAMAV_PORT:-3310}
 DB_PORT=${DB_PORT:-3306}
@@ -36,66 +39,27 @@ SMTP_SERVER_TLS_CERT=${SMTP_SERVER_TLS_CERT:-"cert.pem"}
 SMTP_SERVER_TLS_CIPHERS=${SMTP_SERVER_TLS_CIPHERS:-""}
 SMTP_SERVER_TLS_KEY=${SMTP_SERVER_TLS_KEY:-"key.pem"}
 SPAMASSASSIN_PORT=${SPAMASSASSIN_PORT:-737}
+WEB_PROTOCOL=${WEB_PROTOCOL:-"http"}
+WEB_HOST=${WEB_HOST:-"postal.example.com"}
 
 ### Set Debug Mode
-if [ "$DEBUG_MODE" = "TRUE" ] || [ "$DEBUG_MODE" = "true" ]; then
-    set -x
-fi
-
-### Sanity Test
-if [ ! -n "$DB_HOST" ]; then
-    echo '** [postal] ERROR: No Database Host Entered! '
-    exit 1
-fi
-
-if [ ! -n "$DB_NAME" ]; then
-    echo '** [postal] ERROR: No Database Pass Entered! '
-    exit 1
-fi
-
-if [ ! -n "$DB_USER" ]; then
-    echo '** [postal] ERROR: No Database User Entered! '
-    exit 1
-fi
-
-if [ ! -n "$DB_PASS" ]; then
-    echo '** [postal] ERROR: No Database Pass Entered! '
-    exit 1
-fi
-
-if [ ! -n "$RABBITMQ_HOST" ]; then
-    echo '** [postal] ERROR: No RabbitMQ Host Entered! '
-    exit 1
-fi
-
-if [ ! -n "$RABBITMQ_VHOST" ]; then
-    echo '** [postal] ERROR: No RabbitMQ Vhost Entered! '
-    exit 1
-fi
-
-if [ ! -n "$RABBITMQ_PASS" ]; then
-    echo '** [postal] ERROR: No RabbitMQ Pass Entered! '
-    exit 1
-fi
+sanity_db
+sanity_var RABBITMQ_HOST "RabbitMQ Host"
+sanity_var RABBITMQ_VHOST "RabbitMQ VHost"
+sanity_var RABBITMQ_PASS "RabbitMQ Password"
 
 if [ "$ENABLE_CLAMAV" = "true" ];  then 
-  if [ ! -n "$CLAMAV_HOST" ]; then
-      echo '** [postal] ERROR: No ClamAV Host Entered! '
-      exit 1
-  fi
+  sanity_var CLAMAV_HOST "ClamAV Host"
 fi
 
 if [ "$ENABLE_SPAMASSASSIN" = "true" ];  then 
-  if [ ! -n "$SPAMASSASSIN_HOST" ]; then
-      echo '** [postal] ERROR: No Spamassassin Host Entered! '
-      exit 1
-  fi
+  sanity_var SPAMASSASSIN_HOST "SpamAssassin Host"
 fi
 
 ### SSL Configuration
 if [ "$SMTP_SERVER_ENABLE_TLS" = "true" ];  then 
   if [ ! -f "/opt/postal/certs/$SMTP_SERVER_TLS_CERT" ] || [ ! -f "/opt/postal/certs/$SMTP_SERVER_TLS_KEY" ]; then
-      echo "** [psotal] TLS Key or certificate not found. Generating self-signed certificates"
+      print_warn "** [psotal] TLS Key or certificate not found. Generating self-signed certificates"
       cat <<EOF > /tmp/openssl.cnf
 [ req ]
 default_bits = 2048
@@ -139,6 +103,10 @@ chown -R postal. /opt/postal/config
 /opt/postal/bin/postal initialize-config
 
 ## Modify Configuration file
+### Web Hosting
+sed -i -e '/web:/!b' -e ':a' -e "s/host.*/host: $WEB_HOST/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
+sed -i -e '/web:/!b' -e ':a' -e "s/protocol.*/protocol: $WEB_PROTOCOL/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
+
 ### Clam Antivirus
 sed -i -e '/clamav:/!b' -e ':a' -e "s/enabled.*/enabled: $ENABLE_CLAMAV/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/clamav:/!b' -e ':a' -e "s/host.*/host: $CLAMAV_HOST/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
@@ -150,7 +118,6 @@ sed -i -e '/dns:/!b' -e ':a' -e "s/spf_include.*/spf_include: $DNS_SPF/;t trail"
 sed -i -e '/dns:/!b' -e ':a' -e "s/return_path.*/return_path: $DNS_RETURN_PATH/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/dns:/!b' -e ':a' -e "s/route_domain.*/route_domain: $DNS_ROUTE_DOMAIN/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/dns:/!b' -e ':a' -e "s/track_domain.*/track_domain: $DNS_TRACK_DOMAIN/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
-sed -i -e '/dns:/!b' -e ':a' -e "s/helo_hostname.*/helo_hostname: $SMTP_SERVER_HELO_HOSTNAME/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/dns:/!b' -e ':a' -e "s/dkim_identifier.*/dkim_identifier: $DNS_DKIM_IDENTIFIER/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/dns:/!b' -e ':a' -e "s/domain_verify_prefix.*/domain_verify_prefix: $DNS_DOMAIN_VERIFY_PREFIX/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/dns:/!b' -e ':a' -e "s/custom_return_path_prefix.*/custom_return_path_prefix: $DNS_RETURN_PATH_PREFIX/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
@@ -181,8 +148,8 @@ sed -i -e '/rabbitmq:/!b' -e ':a' -e "s/port.*/port: $RABBITMQ_PORT/;t trail" -e
 ### SMTP Server
 sed -i -e '/smtp_server:/!b' -e ':a' -e "s/port.*/port: $SMTP_SERVER_PORT/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp_server:/!b' -e ':a' -e "s/tls_enabled.*/tls_enabled: $SMTP_SERVER_ENABLE_TLS/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
-sed -i -e '/smtp_server:/!b' -e ':a' -e "s/tls_certificate_path.*/tls_certificate_path: $SMTP_SERVER_TLS_CERT/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
-sed -i -e '/smtp_server:/!b' -e ':a' -e "s/tls_private_key_path.*/tls_private_key_path: $SMTP_SERVER_TLS_KEY/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
+sed -i -e '/smtp_server:/!b' -e ':a' -e "s/tls_certificate_path.*/tls_certificate_path: /opt/postal/certs/$SMTP_SERVER_TLS_CERT/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
+sed -i -e '/smtp_server:/!b' -e ':a' -e "s/tls_private_key_path.*/tls_private_key_path: /opt/postal/certs/$SMTP_SERVER_TLS_KEY/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp_server:/!b' -e ':a' -e "s/tls_ciphers.*/tls_ciphers: $SMTP_SERVER_TLS_CIPHERS/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp_server:/!b' -e ':a' -e "s/ssl_version.*/ssl_version: $SMTP_SERVER_SSL_VERSION/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp_server:/!b' -e ':a' -e "s/proxy_protocol.*/proxy_protocol: $SMTP_SERVER_PROXY_PROTOCOL/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
@@ -202,6 +169,8 @@ sed -i -e '/smtp_relays:/!b' -e ':a' -e "s/ssl_mode.*/ssl_mode: $SMTP_RELAY_SSL_
 ### SMTP
 sed -i -e '/smtp:/!b' -e ':a' -e "s/host.*/host: $SMTP_HOST/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp:/!b' -e ':a' -e "s/port.*/port: $SMTP_PORT/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
+sed -i -e '/smtp:/!b' -e ':a' -e "s/username.*/username: $SMTP_USER/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
+sed -i -e '/smtp:/!b' -e ':a' -e "s/password.*/password: $SMTP_PASS/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp:/!b' -e ':a' -e "s/from_name.*/from_name: $SMTP_FROM_NAME/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 sed -i -e '/smtp:/!b' -e ':a' -e "s/from_address.*/from_address: $SMTP_FROM_ADDRESS/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 
@@ -211,31 +180,20 @@ sed -i -e '/spamd:/!b' -e ':a' -e "s/host.*/host: $SPAMASSASSIN_HOST/;t trail" -
 sed -i -e '/spamd:/!b' -e ':a' -e "s/port.*/port: $SPAMASSASSIN_PORT/;t trail" -e 'n;ba' -e ':trail' -e 'n;btrail' /opt/postal/config/postal.yml
 ##
 
-
 ## Clean Up
 rm -rf /opt/postal/tmp/pids/*
 
 ### Make sure that DB is accessible
-while true; do
-  mysqlcmd="mysql -u$DB_USER -h$DB_HOST -p$DB_PASS -P$DB_PORT"
-  out="`$mysqlcmd -e "SELECT COUNT(*) FROM information_schema.FILES;" 2>&1`"
-  echo "$out" | grep -E "COUNT|Enter" 2>&1 > /dev/null
-  if [ $? -eq 0 ]; then
-      echo "** [postal] MariaDB Server '"$DB_HOST"' is available"
-      break
-  fi
-  echo "** [postal] MariaDB Server '"$DB_HOST"' unavailable. Sleeping a little bit ..."
-  sleep 5
-done
+db_check mariadb
 
 ### Make sure that RabbitMQ is accessible
 while true; do
   nc -z $RABBITMQ_HOST 5672
   if [ $? -eq 0 ]; then
-      echo "** [postal] RabbitMQ Server '"$RABBITMQ_HOST"' is available"
+      :
       break
   fi
-  echo "** [postal] RabbitMQ Server '"$RABBITMQ_HOST"' unavailable. Sleeping a little bit ..."
+  print_warn "RabbitMQ Server '${RABBITMQ_HOST}' unavailable. Sleeping a little bit ..."
   sleep 5
 done
 
@@ -244,10 +202,10 @@ if [ "$ENABLE_CLAMAV" = "true" ];  then
   while true; do
     nc -w1 $CLAMAV_HOST $CLAMAV_PORT< /dev/null 2>&1 > /dev/null
     if [ $? -eq 0 ]; then
-        echo "** [postal] ClamAV Server '"$CLAMAV_HOST"' is available"
+        :
         break
     fi
-    echo "** [postal] ClamAV Server '"$CLAMAV_HOST"' unavailable. Sleeping a little bit ..."
+    print_warn "ClamAV Server '${CLAMAV_HOST}' unavailable. Sleeping a little bit ..."
     sleep 5
   done
 fi
@@ -257,42 +215,42 @@ if [ "$ENABLE_SPAMASSASSIN" = "true" ];  then
   while true; do
     nc -w1 $SPAMASSASSIN_HOST $SPAMASSASSIN_PORT< /dev/null 2>&1 > /dev/null
     if [ $? -eq 0 ]; then
-        echo "** [postal] Spamassassin Server '"$SPAMASSASSIN_HOST"' is available"
+        :
         break
     fi
-    echo "** [postal] Spamassassin Server '"$SPAMASSASSIN_HOST"' unavailable. Sleeping a little bit ..."
+    print_warn "Spamassassin Server '${SPAMASSASSIN_HOST}' unavailable. Sleeping a little bit ..."
     sleep 5
   done
 fi
 
 if [[ $(mysql -h $DB_HOST -u$DB_USER -p$DB_PASS -s --skip-column-names -e "SELECT COUNT(DISTINCT table_name) FROM information_schema.columns WHERE table_schema = '"$DB_NAME"'") == 0 ]]; then
-  echo "** [postal] Detecting new Install. Initializing Database"
+  print_warn "Detecting new Install. Initializing Database"
   if [ ! -n "$DB_HOST" ]; then
-    echo '** [postal] ERROR: No Root Password Entered! You only need to provide the environment variable one time. Please try again.'
+    print_error "No Root Password Entered! You only need to provide the environment variable one time. Please try again."
     exit 1
   fi
 
   /opt/postal/bin/postal initialize
   mysql -uroot -p$DB_ROOT_PASS -h$DB_HOST -e 'GRANT ALL PRIVILEGES ON `'$DB_NAME'-%` . * to `'$DB_USER'`@`%`  IDENTIFIED BY "'$DB_PASS'";'
-    echo "** [postal] Creating Administrative User"
+    print_warn "Creating Administrative User"
     if [ ! -n "$ADMIN_EMAIL" ]; then
-    echo '** [postal] WARNING: No Admin Email entered, setting default email login to `postal@example.com`'
+    print_warn "No Admin Email entered, setting default email login to 'postal@example.com'"
     ADMIN_EMAIL="postal@example.com"
   fi
   if [ ! -n "$ADMIN_PASS" ]; then
-    echo '** [postal] WARNING: No Admin Pass entered, setting default password to `postal`'
+    print_warn "WARNING: No Admin Pass entered, setting default password to 'postal'"
     ADMIN_PASS="postal"
   fi
   if [ ! -n "$ADMIN_FNAME" ]; then
-    echo '** [postal] WARNING: No Admin First Name entered, setting default to `Postal`'
+    print_warn "No Admin First Name entered, setting default to 'Postal'"
     ADMIN_FNAME="Postal"
   fi
   if [ ! -n "$ADMIN_LNAME" ]; then
-    echo '** [postal] WARNING: No Admin Last Name entered, setting default to `Admin`'
+    print_warn "No Admin Last Name entered, setting default to 'Admin'"
     ADMIN_LNAME="Admin"
   fi
 
- cat <<EOF > /tmp/create-pass.sh
+  cat <<EOF > /tmp/create-pass.sh
 #!/usr/bin/expect
 
 spawn /usr/bin/with-contenv bash /opt/postal/bin/postal make-user
@@ -308,12 +266,11 @@ expect "User has been created"
 exit 0
 EOF
 
-chmod +x /tmp/create-pass.sh
-/tmp/create-pass.sh
-rm -rf /tmp/create-pass.sh
+  chmod +x /tmp/create-pass.sh
+  /tmp/create-pass.sh
+  rm -rf /tmp/create-pass.sh
 else
   /opt/postal/bin/postal upgrade
 fi
 
-mkdir -p /tmp/state
-touch /tmp/state/10-postal-init
+liftoff
