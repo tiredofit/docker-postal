@@ -184,7 +184,7 @@ sed -i -e '/spamd:/!b' -e ':a' -e "s/port.*/port: $SPAMASSASSIN_PORT/;t trail" -
 rm -rf /opt/postal/tmp/pids/*
 
 ### Make sure that DB is accessible
-db_check mariadb
+db_ready mariadb
 
 ### Make sure that RabbitMQ is accessible
 while true; do
