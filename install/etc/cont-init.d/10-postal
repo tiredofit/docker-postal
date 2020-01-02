@@ -1,6 +1,6 @@
 #!/usr/bin/with-contenv /bin/bash
 
-source /assets/functions/*
+for s in /assets/functions/*; do source $s; done
 PROCESS_NAME="postal"
 
 ### Set Defaults
@@ -59,7 +59,7 @@ fi
 ### SSL Configuration
 if [ "$SMTP_SERVER_ENABLE_TLS" = "true" ];  then 
   if [ ! -f "/opt/postal/certs/$SMTP_SERVER_TLS_CERT" ] || [ ! -f "/opt/postal/certs/$SMTP_SERVER_TLS_KEY" ]; then
-      print_warn "** [psotal] TLS Key or certificate not found. Generating self-signed certificates"
+      print_warn "TLS Key or certificate not found. Generating self-signed certificates"
       cat <<EOF > /tmp/openssl.cnf
 [ req ]
 default_bits = 2048
