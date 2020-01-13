@@ -44,7 +44,7 @@ management.
 
 # Installation
 
-Automated builds of the image are available on [Registry](https://hub.docker.com/tiredofit/postal) and is the recommended method of 
+Automated builds of the image are available on [Registry](https://hub.docker.com/r/tiredofit/postal) and is the recommended method of 
 installation.
 
 
@@ -53,7 +53,7 @@ docker pull hub.docker.com/tiredofit/postal:(imagetag)
 ```
 
 The following image tags are available:
-* `latest` - Most recent release of postal w/Alpine Linux 3.8
+* `latest` - Most recent release of postal w/Alpine Linux 3.11 + Ruby 2.6
 
 # Quick Start
 
@@ -73,17 +73,17 @@ available options that can be used to customize your installation.
 
 | Parameter | Description |
 |-----------|-------------|
-| `$DB_HOST`  | Hostname of MariaDB Container |
-| `$DB_NAME` | Name of MariaDB Database |
-| `$DB_USER` | Database Username |
-| `$DB_PASS` | Password for Above User |
-| `$DB_PORT` | MariaDB Server Port - Default `3306`
-| `$DB_ROOT_PASS` | Needed for first boot - Assigns privileges to $DB_USER. MySQL Root Pass |
-| `$RABBITMQ_HOST` | RabbitMQ Hostname or Container |
-| `$RABBITMQ_VHOST` | RabbitMQ VHost shard |
-| `$RABBITMQ_USER` | RabbitMQ Username |
-| `$RABBITMQ_PASS` | RabbitMQ Password |
-| `$RABBITMQ_PORT` | RabbitMQ Port - Default `5672` |
+| `DB_HOST`  | Hostname of MariaDB Container |
+| `DB_NAME` | Name of MariaDB Database |
+| `DB_USER` | Database Username |
+| `DB_PASS` | Password for Above User |
+| `DB_PORT` | MariaDB Server Port - Default `3306`
+| `DB_ROOT_PASS` | Needed for first boot - Assigns privileges to $DB_USER. MySQL Root Pass |
+| `RABBITMQ_HOST` | RabbitMQ Hostname or Container |
+| `RABBITMQ_VHOST` | RabbitMQ VHost shard |
+| `RABBITMQ_USER` | RabbitMQ Username |
+| `RABBITMQ_PASS` | RabbitMQ Password |
+| `RABBITMQ_PORT` | RabbitMQ Port - Default `5672` |
 | `ENABLE_CLAMAV` | Enable ClamAV `true` or `false` - Default `false` |
 | `ENABLE_SPAMASSASSIN` | Enable Spamassassin `true` or `false` - Default `false` |
 | `CLAMAV_HOST` | Hostname of Clamd Server |
@@ -99,9 +99,9 @@ available options that can be used to customize your installation.
 
 | Port | Description        |
 |-----------|---------------|
-| `5000`    | Procodile     |
 | `25`      | SMTP          |
 | `587`     | Submission    |
+| `5000`    | Procodile     |
 
 # Maintenance
 
