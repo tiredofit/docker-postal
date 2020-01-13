@@ -1,4 +1,4 @@
-FROM tiredofit/ruby:2.4-alpine-latest
+FROM tiredofit/ruby:2.6-alpine
 LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
 
 ENV ENABLE_CRON=FALSE \
@@ -12,15 +12,16 @@ RUN set -x && \
 # Build Dependencies
     apk update && \
     apk add --no-cache --virtual .postal-build-deps \
+            build-base \
             git \
             mariadb-dev \
             && \
 	    \
-    apk add --no-cache --virtual .lemonldap-run-deps \
+    apk add --no-cache --virtual .postal-run-deps \
             expect \
             nodejs \
-            mariadb-client-libs \
             mariadb-client \
+            mariadb-connector-c \
             sudo \
             && \
             \

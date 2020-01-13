@@ -1,97 +1,98 @@
-version: '2'
-
+version: '3.7'
 services:
+
   postal-app:
-    container_name: postal-app
     image: tiredofit/postal
+    container_name: postal-app
     ports:
-      - 25:2525
+    - 25:2525
+    labels:
+    - traefik.enable=true
+    - traefik.frontend.rule=Host:postal.example.com
+    - traefik.port=5000
+    - traefik.protocol=http
+    - traefik.docker.network=proxy
+    - traefik.backend=postal-app
     volumes:
-      - ./data/postal:/opt/postal/config
+    - ./data/postal:/opt/postal/config
     environment: 
-      - VIRTUAL_HOST=postal.example.com
-      - VIRTUAL_NETWORK=nginx-proxy
-      - VIRTUAL_PORT=5000
-      - LETSENCRYPT_HOST=postal.example.com
-      - LETSENCRYPT_EMAIL=email@example.com
+    - ZABBIX_HOSTNAME=postal-app
 
-      - ZABBIX_HOSTNAME=postal-app
+    - DB_HOST=postal-db
+    - DB_PORT=3306
+    - DB_NAME=postal
+    - DB_USER=postal
+    - DB_PASS=postalpass
+    ## A great idea is to delete this block after first install.
+    - DB_ROOT_PASS=rootpassword
+    - ADMIN_EMAIL=example@hostname.com
+    - ADMIN_PASS=password
+    - ADMIN_FNAME=Example
+    - ADMIN_LNAME=Admin
+    ##
 
-      - DB_HOST=postal-db
-      - DB_PORT=3306
-      - DB_NAME=postal
-      - DB_USER=postal
-      - DB_PASS=postalpass
-     ## A great idea is to delete this block after first install.
-      - DB_ROOT_PASS=rootpassword
-      - ADMIN_EMAIL=example@hostname.com
-      - ADMIN_PASS=password
-      - ADMIN_FNAME=Example
-      - ADMIN_LNAME=Admin
-     ##
+    - RABBITMQ_HOST=postal-rabbitmq
+    - RABBITMQ_USER=postal
+    - RABBITMQ_PASS=password
+    - RABBITMQ_VHOST=/postal
 
-      - RABBITMQ_HOST=postal-rabbitmq
-      - RABBITMQ_USER=postal
-      - RABBITMQ_PASS=password
-      - RABBITMQ_VHOST=/postal
-
-      - ENABLE_SPAMASSASSIN=false
-      - ENABLE_CLAMAV=false
-      - CLAMAV_HOST=postal-clamav
-      - SPAMASSASSIN_HOST=postal-spamassassin
-      
-    restart: always
+    - ENABLE_SPAMASSASSIN=false
+    - ENABLE_CLAMAV=false
+    - CLAMAV_HOST=postal-clamav
+    - SPAMASSASSIN_HOST=postal-spamassassin
     networks:
-      - proxy-tier
+    - proxy
+    - services
+    restart: always
 
   postal-db:
-    container_name: postal-db
     image: tiredofit/mariadb
-    restart: always
+    container_name: postal-db
     volumes:
-      - ./db:/var/lib/mysql
+    - ./db:/var/lib/mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=postal
-      - MYSQL_USER=postal
-      - MYSQL_PASSWORD=postalpass
-      - ZABBIX_HOSTNAME=postal-db
+    - MYSQL_ROOT_PASSWORD=rootpassword
+    - MYSQL_DATABASE=postal
+    - MYSQL_USER=postal
+    - MYSQL_PASSWORD=postalpass
+    - ZABBIX_HOSTNAME=postal-db
     networks:
-      - proxy-tier
+    - services
+    restart: always
 
   postal-db-backup:
-    container_name: postal-db-backup
     image: tiredofit/db-backup
+    container_name: postal-db-backup
     links:
-     - postal-db
+    - postal-db
     volumes:
-      - ./dbbackup:/backup
+    - ./dbbackup:/backup
     environment:
-      - ZABBIX_HOSTNAME=postal-db-backup
-      - DB_HOST=postal-db
-      - DB_TYPE=mariadb
-      - DB_NAME=postal
-      - DB_USER=postal
-      - DB_PASS=postalpass
-      - DB_DUMP_FREQ=1440
-      - DB_DUMP_BEGIN=0000
-      - DB_CLEANUP_TIME=8640
-      - COMPRESSION=BZ
-      - MD5=TRUE
+    - ZABBIX_HOSTNAME=postal-db-backup
+    - DB_HOST=postal-db
+    - DB_TYPE=mariadb
+    - DB_NAME=postal
+    - DB_USER=postal
+    - DB_PASS=postalpass
+    - DB_DUMP_FREQ=1440
+    - DB_DUMP_BEGIN=0000
+    - DB_CLEANUP_TIME=8640
+    - COMPRESSION=BZ
+    - MD5=TRUE
     networks:
-      - proxy-tier
+    - services
     restart: always
 
   postal-rabbitmq:
     container_name: postal-rabbitmq
     image: tiredofit/rabbitmq
     environment:
-      - RABBITMQ_DEFAULT_USER=postal
-      - RABBITMQ_DEFAULT_PASS=password
-      - RABBITMQ_DEFAULT_VHOST=/postal
-      - ZABBIX_HOSTNAME=postal-rabbitmq
+    - RABBITMQ_DEFAULT_USER=postal
+    - RABBITMQ_DEFAULT_PASS=password
+    - RABBITMQ_DEFAULT_VHOST=/postal
+    - ZABBIX_HOSTNAME=postal-rabbitmq
     networks:
-      - proxy-tier
+    - services
     restart: always
 
   postal-clamav:
@@ -103,7 +104,7 @@ services:
     environment:
     - ZABBIX_HOSTNAME=postal-clamav
     networks:
-      - proxy-tier
+    - services
     restart: always
 
   postal-spamassassin:
@@ -116,11 +117,12 @@ services:
     environment:
     - ZABBIX_HOSTNAME=postal-spamassassin
     networks:
-      - proxy-tier
+    - services
     restart: always
 
 networks:
-  proxy-tier:
-    external:
-      name: nginx-proxy
+  proxy:
+    external: true
+  services:
+    external: true
 

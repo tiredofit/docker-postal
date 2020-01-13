@@ -1,5 +1,10 @@
 # hub.docker.com/r/tiredofit/postal
 
+[![Build Status](https://img.shields.io/docker/build/tiredofit/postal.svg)](https://hub.docker.com/r/tiredofit/postal)
+[![Docker Pulls](https://img.shields.io/docker/pulls/tiredofit/postal.svg)](https://hub.docker.com/r/tiredofit/postal)
+[![Docker Stars](https://img.shields.io/docker/stars/tiredofit/postal.svg)](https://hub.docker.com/r/tiredofit/postal)
+[![Docker Layers](https://images.microbadger.com/badges/image/tiredofit/postal.svg)]
+
 # Introduction
 
 Dockerfile to build a [Postal](https://github.com/atech/postal) SMTP server for sending and receiving SMTP / HTTP API email.
@@ -32,14 +37,14 @@ management.
 
 # Prerequisites
 
-- [RabbitMQ Server](https://github.com/tiredofit/docker-rabbitmq)
-- [MariaDB Server](https://github.com/tiredofit/docker-mariadb)
-- [Spamassassin](https://github.com/tiredofit/docker-spamassassin) *optional*
-- [Clam Antivirus](https://github.com/tiredofit/docker-clamav) *optional*
+[RabbitMQ Server](https://github.com/tiredofit/docker-rabbitmq)
+[MariaDB Server](https://github.com/tiredofit/docker-mariadb)
+[Spamassassin](https://github.com/tiredofit/docker-spamassassin) *optional*
+[Clam Antivirus](https://github.com/tiredofit/docker-clamav) *optional*
 
 # Installation
 
-Automated builds of the image are available on [Registry](https://hub.docker.com/r/tiredofit/postal) and is the recommended method of 
+Automated builds of the image are available on [Registry](https://hub.docker.com/tiredofit/postal) and is the recommended method of 
 installation.
 
 
@@ -48,7 +53,7 @@ docker pull hub.docker.com/tiredofit/postal:(imagetag)
 ```
 
 The following image tags are available:
-* `latest` - Most recent release of postal w/Alpine Linux 3.7
+* `latest` - Most recent release of postal w/Alpine Linux 3.8
 
 # Quick Start
 
@@ -86,6 +91,9 @@ available options that can be used to customize your installation.
 | `CLAMAV_PORT` | TCP Port of Clamd Server - Default `3310` |
 | `SPAMASSASSIN_PORT` | TCP Port of Spamassassin Process - Default `737` |
 | `LOG_CONSOLE` | Log to Stdout Console `true` or `false` - Default `true` |
+| `WEB_HOST` | Hostname of Webhost for SMTP Invites - Default `postal.example.com` |
+| `WEB_PROTOCOL | Protocol of Webhost for SMTP Invites `http` or `https` - Default `http`
+
 
 ### Networking
 
