@@ -5,119 +5,141 @@ services:
     image: tiredofit/postal
     container_name: postal-app
     ports:
-    - 25:2525
+      - 25:2525
     labels:
-    - traefik.enable=true
-    - traefik.frontend.rule=Host:postal.example.com
-    - traefik.port=5000
-    - traefik.protocol=http
-    - traefik.docker.network=proxy
-    - traefik.backend=postal-app
+      - traefik.enable=true
+      - traefik.frontend.rule=Host:postal.example.com
+      - traefik.port=5000
+      - traefik.protocol=http
+      - traefik.docker.network=proxy
+      - traefik.backend=postal-app
     volumes:
-    - ./data/postal:/opt/postal/config
+      - ./logs/postal:/logs
     environment: 
-    - ZABBIX_HOSTNAME=postal-app
+      - ZABBIX_HOSTNAME=postal-app
 
-    - DB_HOST=postal-db
-    - DB_PORT=3306
-    - DB_NAME=postal
-    - DB_USER=postal
-    - DB_PASS=postalpass
+      - DB_HOST=postal-db
+      - DB_PORT=3306
+      - DB_NAME=postal
+      - DB_USER=postal
+      - DB_PASS=postalpass
+    
     ## A great idea is to delete this block after first install.
-    - DB_ROOT_PASS=rootpassword
-    - ADMIN_EMAIL=example@hostname.com
-    - ADMIN_PASS=password
-    - ADMIN_FNAME=Example
-    - ADMIN_LNAME=Admin
+      - DB_ROOT_PASS=rootpassword
+      - ADMIN_EMAIL=example@hostname.com
+      - ADMIN_PASS=password
+      - ADMIN_FNAME=Example
+      - ADMIN_LNAME=Admin
     ##
 
-    - RABBITMQ_HOST=postal-rabbitmq
-    - RABBITMQ_USER=postal
-    - RABBITMQ_PASS=password
-    - RABBITMQ_VHOST=/postal
+      - RABBITMQ_HOST=postal-rabbitmq
+      - RABBITMQ_USER=postal
+      - RABBITMQ_PASS=password
+      - RABBITMQ_VHOST=/postal
 
-    - ENABLE_SPAMASSASSIN=false
-    - ENABLE_CLAMAV=false
-    - CLAMAV_HOST=postal-clamav
-    - SPAMASSASSIN_HOST=postal-spamassassin
+      - ENABLE_SPAMASSASSIN=false
+      - SPAMASSASSIN_HOST=postal-spamassassin
+
+      - ENABLE_CLAMAV=false
+      - CLAMAV_HOST=postal-clamav
+  
+      - DNS_HOSTNAME=postal.example.com
+      - DNS_MX=mx.example.com
+      - DNS_RETURN_PATH=rp.example.com
+      - DNS_ROUTE_DOMAIN=routes.postal.example.com
+      - DNS_TRACK_DOMAIN=track.postal.example.com
+      - DNS_SPF=spf.postal.example.com
+      - DNS_DKIM_IDENTIFIER=postal
+      - DNS_DOMAIN_VERIFY_PREFIX=example-verification
+      - SMTP_SERVER_ENABLE_TLS=false
+
+      - SMTP_FROM_ADDRESS=noreply@example.com
+      - SMTP_FROM_NAME=Postal
+      - SMTP_HOST=127.0.0.1
+      - SMTP_USER=   ## Fill these in after you have a working installation and server to be able to invite users
+      - SMTP_PASS=   ##
+
+      - WEB_HOST=mx.example.com
+      - WEB_PROTOCOL=https
+
     networks:
-    - proxy
-    - services
+      - proxy
+      - services
     restart: always
 
   postal-db:
     image: tiredofit/mariadb
     container_name: postal-db
     volumes:
-    - ./db:/var/lib/mysql
+      - ./db:/var/lib/mysql
     environment:
-    - MYSQL_ROOT_PASSWORD=rootpassword
-    - MYSQL_DATABASE=postal
-    - MYSQL_USER=postal
-    - MYSQL_PASSWORD=postalpass
-    - ZABBIX_HOSTNAME=postal-db
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=postal
+      - MYSQL_USER=postal
+      - MYSQL_PASSWORD=postalpass
+      - ZABBIX_HOSTNAME=postal-db
     networks:
-    - services
+      - services
     restart: always
 
   postal-db-backup:
     image: tiredofit/db-backup
     container_name: postal-db-backup
     links:
-    - postal-db
+      - postal-db
     volumes:
-    - ./dbbackup:/backup
+      - ./dbbackup:/backup
     environment:
-    - ZABBIX_HOSTNAME=postal-db-backup
-    - DB_HOST=postal-db
-    - DB_TYPE=mariadb
-    - DB_NAME=postal
-    - DB_USER=postal
-    - DB_PASS=postalpass
-    - DB_DUMP_FREQ=1440
-    - DB_DUMP_BEGIN=0000
-    - DB_CLEANUP_TIME=8640
-    - COMPRESSION=BZ
-    - MD5=TRUE
+      - ZABBIX_HOSTNAME=postal-db-backup
+      - DB_HOST=postal-db
+      - DB_TYPE=mariadb
+      - DB_NAME=postal
+      - DB_USER=postal
+      - DB_PASS=postalpass
+      - DB_DUMP_FREQ=1440
+      - DB_DUMP_BEGIN=0000
+      - DB_CLEANUP_TIME=8640
+      - COMPRESSION=BZ
+      - MD5=TRUE
     networks:
-    - services
+      - services
     restart: always
 
   postal-rabbitmq:
     container_name: postal-rabbitmq
     image: tiredofit/rabbitmq
     environment:
-    - RABBITMQ_DEFAULT_USER=postal
-    - RABBITMQ_DEFAULT_PASS=password
-    - RABBITMQ_DEFAULT_VHOST=/postal
-    - ZABBIX_HOSTNAME=postal-rabbitmq
+      - RABBITMQ_DEFAULT_USER=postal
+      - RABBITMQ_DEFAULT_PASS=password
+      - RABBITMQ_DEFAULT_VHOST=/postal
+      - ZABBIX_HOSTNAME=postal-rabbitmq
     networks:
-    - services
+      - services
     restart: always
 
   postal-clamav:
     container_name: postal-clamav
     image: tiredofit/clamav
     volumes:
-    - ./data/clamav:/data
-    - ./logs/clamav:/var/log/clamav
+      - ./data/clamav:/data
+      - ./logs/clamav:/var/log/clamav
     environment:
-    - ZABBIX_HOSTNAME=postal-clamav
+      - ZABBIX_HOSTNAME=postal-clamav
     networks:
-    - services
+      - services
     restart: always
 
   postal-spamassassin:
     image: tiredofit/spamassassin
     container_name: postal-spamassassin-app
     volumes:
-    - ./logs/spamassassin:/var/log/spamassassin
-    - ./data/spamassassin/conf:/etc/mail/spamassassin
-    - ./data/spamassassin/data:/var/lib/spamassassin
+      - ./logs/spamassassin:/var/log/spamassassin
+      - ./data/spamassassin/conf:/etc/mail/spamassassin
+      - ./data/spamassassin/data:/var/lib/spamassassin
     environment:
-    - ZABBIX_HOSTNAME=postal-spamassassin
+      - ZABBIX_HOSTNAME=postal-spamassassin
     networks:
-    - services
+      - services
     restart: always
 
 networks:

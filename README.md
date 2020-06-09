@@ -44,7 +44,7 @@ management.
 
 # Installation
 
-Automated builds of the image are available on [Registry](https://hub.docker.com/r/tiredofit/postal) and is the recommended method of 
+Automated builds of the image are available on [Docker Hub](https://hub.docker.com/r/tiredofit/postal) and is the recommended method of 
 installation.
 
 
@@ -100,7 +100,6 @@ available options that can be used to customize your installation.
 | Port | Description        |
 |-----------|---------------|
 | `25`      | SMTP          |
-| `587`     | Submission    |
 | `5000`    | Procodile     |
 
 # Maintenance

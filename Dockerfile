@@ -1,50 +1,50 @@
-FROM tiredofit/ruby:2.6-alpine
+FROM registry.selfdesign.org/docker/ruby/2.6/alpine:latest
 LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
 
-ENV ENABLE_CRON=FALSE \
-    ENABLE_SMTP=FALSE
+ENV POSTAL_CONFIG_ROOT=/app/config \
+    ENABLE_SMTP=FALSE \
+    ZABBIX_HOSTNAME=postal-app
 
 RUN set -x && \
 # Create User
     addgroup -g 2525 postal && \
-    adduser -S -D -G postal -u 2525 -h /opt/postal/ postal && \
+    adduser -S -D -G postal -u 2525 -h /app/ postal && \
     \
 # Build Dependencies
     apk update && \
-    apk add --no-cache --virtual .postal-build-deps \
+    apk upgrade && \
+    apk add -t .postal-build-deps \
             build-base \
             git \
             mariadb-dev \
             && \
 	    \
-    apk add --no-cache --virtual .postal-run-deps \
+    apk add -t .postal-run-deps \
             expect \
             nodejs \
             mariadb-client \
             mariadb-connector-c \
-            sudo \
+            openssl \
             && \
             \
 ### Fetch Source and install Ruby Dependencies
     gem install bundler && \
     gem install procodile && \
-    git clone https://github.com/atech/postal /opt/postal && \
+    git clone https://github.com/postalhq/postal /app/ && \
     \
 ### Install Ruby Gems and dependencies
-    /opt/postal/bin/postal bundle /opt/postal/vendor/bundle && \
+    /app/bin/postal bundle /app/vendor/bundle && \
     \
 ### Housekeeping
     ln -s /usr/local/bundle/bin/procodile /usr/sbin && \
-    mkdir -p /opt/postal/certs && \
     \
 # Cleanup
-    chown -R postal. /opt/postal && \
-    rm -rf && \
+    chown -R postal. /app/ && \
     apk del .postal-build-deps && \
     rm -rf /tmp/* /var/cache/apk/* 
 
 ### Networking Setup
-EXPOSE 80 5000
+EXPOSE 25 5000
 
 ### Add Files and Assets
 ADD install /

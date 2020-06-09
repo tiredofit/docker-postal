@@ -1,0 +1,398 @@
+#!/usr/bin/with-contenv /bin/bash
+
+certificates() {
+  CA_NAME=postal-selfsigned-ca
+  CA_SUBJECT=${CA_SUBJECT:-"/C=XX/ST=Postal/L=Postal/O=Postal/CN="}
+  CA_CERT_SUBJECT=${CA_CERT_SUBJECT:-${CA_SUBJECT}${CA_NAME}}
+  CA_CERT_FILE=${CA_CERT_FILE:-"/certs/${CA_NAME}/${CA_NAME}.crt"}
+  CA_KEY_FILE=${CA_KEY_FILE:-"`dirname ${CA_CERT_FILE}`/${CA_NAME}.key"}
+  CREATE_CA=${CREATE_CA:-"TRUE"}
+
+  certificates_create_certificate_authority() {
+    if [ ! -f ${CA_CERT_FILE} ] ; then
+
+      print_debug "Certificates: Creating Self Signed Certificate Authority"
+      mkdir -p `dirname ${CA_CERT_FILE}`
+      echo "000a" > `dirname ${CA_CERT_FILE}`/serial
+      touch `dirname ${CA_CERT_FILE}`/certindex
+
+      silent eval "openssl req \
+            -newkey rsa:4096 -keyout ${CA_KEY_FILE} \
+            -x509 -days 3650 -nodes -out ${CA_CERT_FILE} \
+            -subj \"${CA_CERT_SUBJECT}\""
+
+      cat > `dirname ${CA_CERT_FILE}`/$CA_NAME.conf << EOF
+      [ ca ]
+      default_ca = $CA_NAME
+
+      [ $CA_NAME ]
+      unique_subject = no
+      new_certs_dir = .
+      certificate = ${CA_CERT_FILE}
+      database = `dirname ${CA_CERT_FILE}`/certindex
+      private_key = ${CA_KEY_FILE}
+      serial = `dirname ${CA_CERT_FILE}`/serial
+      default_days = 3650
+      default_md = default
+      policy = ${CA_NAME}_policy
+      x509_extensions = ${CA_NAME}_extensions
+
+      [ ${CA_NAME}_policy ]
+      commonName = supplied
+      stateOrProvinceName = supplied
+      countryName = supplied
+      emailAddress = optional
+      organizationName = supplied
+      organizationalUnitName = optional
+
+      [ ${CA_NAME}_extensions ]
+      basicConstraints = CA:false
+      subjectKeyIdentifier = hash
+      authorityKeyIdentifier = keyid:always
+      keyUsage = digitalSignature,keyEncipherment
+      extendedKeyUsage = serverAuth,clientAuth
+
+      [ req ]
+      default_bits    = 2048
+
+      [default_conf]
+      ssl_conf = ssl_sect
+
+      [ssl_sect]
+      system_default = system_default_sect
+
+      [system_default_sect]
+      MinProtocol = TLSv1.1
+      MaxProtocol = TLSv1.2
+      CipherString = DEFAULT
+EOF
+      else
+          print_debug "Certificates: CA Already Exists"
+    fi
+  }
+
+  certificates_create_certificate() {
+      if [ "$1" != "" ] ; then
+
+        if var_true $CREATE_CA ; then
+            if [ ! -f ${CA_CERT_FILE} ] || [ ! -f ${CA_KEY_FILE} ] ; then
+          print_debug "Certificates: No CA Found - Creating before generating certificates"
+          certificates_create_certificate_authority
+        fi
+      fi            
+            CERT_SUBJECT="${CA_SUBJECT}$(basename ${1%%.*})"
+
+        if var_true $CREATE_CA ; then
+        if [ ! -f ${1%%.*}.key ] ; then
+          print_debug "Certificates: Creating Certificate: ${1}"
+          silent eval "openssl req \
+                  -newkey rsa:2048 -keyout ${1%%.*}.key \
+                -nodes -out ${1%%.*}.csr \
+                -subj \"${CERT_SUBJECT}\""
+        fi
+      else
+        if [ ! -f ${1%%.*}.key ] ; then
+          print_debug "Certificates: Creating Certificate: ${1}"
+          silent eval "openssl req \
+              -new -x509 -nodes -days 3650 
+              -config /tmp/openssl.cnf 
+              -out ${1%%.*}.crt \
+              -keyout ${1%%.*}.key"
+        fi
+      fi
+
+        if var_true $CREATE_CA ; then
+        if [ ! -f ${1%%.*}.cert ] ; then
+          print_debug "Certificates: Signing Certificate: ${1}"
+          silent eval "openssl ca -batch -config `dirname ${CA_CERT_FILE}`/${CA_NAME}.conf -notext -in ${1%%.*}.csr -out ${1%%.*}.crt"
+          rm -rf $(tail -n 1 $(dirname ${CA_CERT_FILE})/certindex | awk '{print $3}').pem
+          rm -rf ${1%%.*}.csr
+        fi
+      fi
+
+      if [ -f ${1%%.*}.crt ] && [ -f ${1%%.*}.key ] ; then
+        print_debug "Certificates: Merging Certificate and Key for: ${1}"
+          cat ${1%%.*}.crt ${1%%.*}.key > ${1%%.*}.pem
+      fi
+
+      if [ ! -f ${1%%.*}-public.pem ] ; then
+        print_debug "Certificates: Creating Public Key for: ${1}"
+        silent openssl rsa -in ${1%%.*}.pem -out ${1%%.*}-public.pem -outform PEM -pubout
+      fi
+    fi
+  }
+
+  certificates_check_permissions() {
+    if sudo -u postal [ ! -r "${1}" ] ; then
+        print_debug "Certificates: Setting Read Permissions on ${1}"
+        chmod 444 ${1}
+      fi
+    }
+
+  certificates_check_certificates() {
+    print_debug "Certificates: Checking Existence of ${1}"
+    if [ ! -f ${1} ] ; then
+          mkdir -p `dirname ${1}`
+          certificates_create_certificate ${1}
+    fi
+  }
+
+  certificates_trust_ca() {
+    if var_true $CREATE_CA ; then
+      if [ -f ${CA_CERT_FILE} ]; then
+        if [ ! -L /usr/local/share/ca-certificates/`basename ${CA_CERT_FILE}` ] ; then
+          print_debug "Certificates: Trusting CA ${CA_NAME}"
+          ln -sf ${CA_CERT_FILE} /usr/local/share/ca-certificates/
+          silent update-ca-certificates
+        fi
+      fi
+    fi
+  }
+
+  case "$1" in
+  *)
+    certificates_check_certificates ${1}
+    certificates_check_permissions ${1}
+    certificates_trust_ca
+  ;;
+  esac
+}
+
+
+check_clamav(){
+  print_debug "Checking Clam Antivirus"
+  if var_true $ENABLE_CLAMAV ; then
+    sanity_var CLAMAV_HOST "ClamAV Host"
+    COUNTER=0
+    while ! (silent nc -z ${CLAMAV_HOST} ${CLAMAV_PORT}) ; do
+        sleep 5
+        let COUNTER+=5
+        print_warn "ClamAV Host '${CLAMAV_HOST}' is not accessible, retrying.. ($COUNTER seconds so far)"
+    done
+  fi
+}
+
+check_spamassassin() {
+  print_debug "Checking Spamassassin"
+  if var_true $ENABLE_SPAMASSASSIN ; then
+    sanity_var SPAMASSASSIN_HOST "SpamAssassin Host"
+    COUNTER=0
+    while ! (silent nc -z ${SPAMASSASSIN_HOST} ${SPAMASSASSIN_PORT}) ; do
+        sleep 5
+        let COUNTER+=5
+        print_warn "SpamAssassin Host '${SPAMASSASSIN_HOST}' is not accessible, retrying.. ($COUNTER seconds so far)"
+    done
+  fi
+}
+
+
+configure_logging() {
+  print_debug "Configuring Logging"
+  mkdir -p ${LOG_LOCATION}
+  chown -R postal: ${LOG_LOCATION}
+}
+
+configure_postal() {
+   
+   silent /app/bin/postal initialize-config
+### Create Configuration
+  if [ "$SETUP_TYPE" = "AUTO" ]; then
+    print_notice "Configuring Postal"
+    mx_array=$(echo $DNS_MX | tr "," "\n")
+      for mx in ${mx_array}
+      do
+          mx_record=${mx_record}$(cat <<EOF
+    - ${mx}
+
+EOF
+                                )
+      done
+    print_debug "Writing Configuration to ${CONFIG_LOCATION}"      
+    cat <<EOF > ${CONFIG_LOCATION}
+web:
+  host: ${WEB_HOST}
+  protocol: ${WEB_PROTOCOL}
+
+general:
+  use_ip_pools: false
+  exception_url:
+  maximum_delivery_attempts: ${MAX_DELIVERY_ATTEMPTS}
+  maximum_hold_expiry_days: ${MAX_HOLD_EXPIRY_DAYS}
+  suppression_list_removal_delay: ${SUPPRESSION_LIST_EXPIRY}
+  use_local_ns_for_domains: false
+
+fast_server:
+  enabled: false
+  bind_address:
+  port: 80
+  ssl_port: 443
+  proxy_protocol: false
+  default_private_key_path: # Defaults to config/fast_server.key
+  default_tls_certificate_path: # Defaults to config/fast_server.cert
+
+web_server:
+  bind_address: ${WEB_BIND_IP}
+  port: ${WEB_BIND_PORT}
+  max_threads: ${WEB_MAX_THREADS}
+
+main_db:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  username: ${DB_USER}
+  password: ${DB_PASS}
+  database: ${DB_NAME}
+  pool_size: ${DB_POOL_SIZE}
+
+logging:
+  stdout: ${LOG_CONSOLE}
+  root: ${LOG_LOCATION}
+  max_log_file_size: ${LOG_SIZE_MAX}
+  
+message_db:
+  host: ${DB_HOST}
+  port: ${DB_PORT}
+  username: ${DB_USER}
+  password: ${DB_PASS}
+  prefix: ${DB_NAME}
+
+rabbitmq:
+  host: ${RABBITMQ_HOST}
+  port: ${RABBITMQ_PORT}
+  username: ${RABBITMQ_USER}
+  password: ${RABBITMQ_PASS}
+  vhost: ${RABBITMQ_VHOST}
+
+workers:
+  quantity: ${WORKERS_AMOUNT}
+  threads: ${WORKERS_THREADS}
+
+smtp_server:
+  port: ${SMTP_SERVER_PORT}
+  tls_enabled: ${SMTP_SERVER_ENABLE_TLS}
+  tls_certificate_path: ${SMTP_SERVER_TLS_CERT}
+  tls_private_key_path: ${SMTP_SERVER_TLS_KEY}
+  tls_ciphers: ${SMTP_SERVER_TLS_CIPHERS}
+  ssl_version: ${SMTP_SERVER_SSL_VERSION}
+  proxy_protocol: ${SMTP_SERVER_PROXY_PROTOCOL}
+  log_connect: ${SMTP_SERVER_LOG_CONNECTIONS}
+  strip_received_headers: ${SMTP_SERVER_STRIP_RECEIVED_HEADERS}
+  max_message_size: ${SMTP_SERVER_MAX_MESSAGE_SIZE}
+
+smtp_relays:
+  -
+    hostname: ${SMTP_RELAY_HOST}
+    port: ${SMTP_RELAY_PORT}
+    ssl_mode: ${SMTP_RELAY_SSL_MODE}
+
+dns:
+  mx_records:
+${mx_record}
+  smtp_server_hostname: ${DNS_HOSTNAME}
+  spf_include: ${DNS_SPF}
+  return_path: ${DNS_RETURN_PATH}
+  route_domain: ${DNS_ROUTE_DOMAIN}
+  track_domain: ${DNS_TRACK_DOMAIN}
+  dkim_identifier: ${DNS_DKIM_IDENTIFIER}
+  domain_verify_prefix: ${DNS_DOMAIN_VERIFY_PREFIX}
+  custom_return_path_prefix: ${DNS_RETURN_PATH_PREFIX}
+
+smtp:
+  host: ${SMTP_HOST}
+  port: ${SMTP_PORT}
+  username: ${SMTP_USER}
+  password: ${SMTP_PASS}
+  from_name: ${SMTP_FROM_NAME}
+  from_address: ${SMTP_FROM_ADDRESS}
+
+rails:
+  environment: production
+  secret_key:
+
+spamd:
+  enabled: ${ENABLE_SPAMASSASSIN}
+  host: ${SPAMASSASSIN_HOST}
+  port: ${SPAMASSASSIN_PORT}
+
+clamav:
+  enabled: ${ENABLE_CLAMAV}
+  host: ${CLAMAV_HOST}
+  port: ${CLAMAV_PORT}
+
+smtp_client:
+  open_timeout: ${SMTP_CLIENT_OPEN_TIMEOUT}
+  read_timeout: ${SMTP_CLIENT_READ_TIMEOUT}
+EOF
+  fi
+
+if [ "${CONFIG_LOCATION}" != "/app/config/postal.yml" ] ; then
+  ln -sf ${CONFIG_LOCATION} /app/config/postal.yml
+fi
+
+}
+
+check_rabbitmq() {
+  print_debug "Checking RabbitMQ"
+  sanity_var RABBITMQ_HOST "RabbitMQ Host"
+  sanity_var RABBITMQ_VHOST "RabbitMQ VHost"
+  sanity_var RABBITMQ_PASS "RabbitMQ Password"
+
+  print_debug "Checking to see if RabbitMQ Host: ${RABBITMQ_HOST} is accessible"
+  COUNTER=0
+  while ! (silent nc -z ${RABBITMQ_HOST} ${RABBITMQ_PORT}) ; do
+      sleep 5
+      let COUNTER+=5
+      print_warn "RabbitMQ Host '${RABBITMQ_HOST}' is not accessible, retrying.. ($COUNTER seconds so far)"
+  done
+}
+
+configure_tls() {
+  print_debug "Configuring TLS"
+  if var_true $SMTP_SERVER_ENABLE_TLS ; then 
+      certificates ${SMTP_SERVER_TLS_CERT}
+  fi
+}
+
+initialize_database() {
+  print_debug "Initializing Database"
+  silent /app/bin/postal initialize
+
+  mysql -uroot -p$DB_ROOT_PASS -h$DB_HOST -e 'GRANT ALL PRIVILEGES ON `'$DB_NAME'-%` . * to `'$DB_USER'`@`%`  IDENTIFIED BY "'$DB_PASS'";'
+    print_notice "Creating Administrative User"
+  if [ ! -n "${ADMIN_EMAIL}" ]; then
+    print_warn "No Admin Email entered, setting default email login to 'postal@example.com'"
+    ADMIN_EMAIL="postal@example.com"
+  fi
+  if [ ! -n "${ADMIN_PASS}" ]; then
+    print_warn "WARNING: No Admin Pass entered, setting default password to 'postal'"
+    ADMIN_PASS="postal"
+  fi
+  if [ ! -n "${ADMIN_FNAME}" ]; then
+    print_warn "No Admin First Name entered, setting default to 'Postal'"
+    ADMIN_FNAME="Postal"
+  fi
+  if [ ! -n "${ADMIN_LNAME}" ]; then
+    print_warn "No Admin Last Name entered, setting default to 'Admin'"
+    ADMIN_LNAME="Admin"
+  fi
+
+  cat <<EOF > /tmp/create-pass.sh
+#!/usr/bin/expect
+
+spawn /usr/bin/with-contenv bash /app/bin/postal make-user
+expect "E-Mail Address      :"
+send -- "$ADMIN_EMAIL\n"
+expect "First Name          :"
+send -- "$ADMIN_FNAME\n"
+expect "Last Name           :"
+send -- "$ADMIN_LNAME\n"
+expect "Initial Password:   :"
+send -- "$ADMIN_PASS\n"
+expect "User has been created"
+exit 0
+EOF
+
+  chmod +x /tmp/create-pass.sh
+  print_debug "Creating User"
+  silent /tmp/create-pass.sh
+  rm -rf /tmp/create-pass.sh
+}

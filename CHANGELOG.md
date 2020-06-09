@@ -1,3 +1,23 @@
+## 2.1.0 2020-06-09 <dave at tiredofit dot ca>
+
+   ### Added
+      - Update to support tiredofit alpine 5.0.0 base image
+
+
+## 2.0.1 2020-06-05 <dave at tiredofit dot ca>
+
+   ### Changed
+      - Move /etc/s6/services to /etc/services.d
+
+
+## 2.0.0 2020-05-21 <dave at tiredofit dot ca>
+
+   ### Added
+      - Refactor Configuration Building
+      - Allow Custom Configuration File
+      - New Environment Variables - See README
+
+
 ## 1.3.0 2020-01-13 <dave at tiredofit dot ca>
 
    ### Added
