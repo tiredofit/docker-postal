@@ -1,4 +1,4 @@
-FROM registry.selfdesign.org/docker/ruby/2.6/alpine:latest
+FROM tiredofit/ruby:2.6-alpine
 LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
 
 ENV POSTAL_CONFIG_ROOT=/app/config \
