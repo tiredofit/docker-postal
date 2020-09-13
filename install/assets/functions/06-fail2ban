@@ -126,7 +126,7 @@ fail2ban_create_filters() {
 		cat <<EOF > ${FAIL2BAN_CONFIG_PATH}filter.d/postal.conf
 ## Custom Generated filter.d/postal.conf Configuration! Do not edit, instead set ENV Vars
 ## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
-## Last Generated on `date`
+## Last Generated on $(date)
 
 # ------------------------
 # WARN: AUTH failure for ::ffff:(\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)
@@ -146,7 +146,8 @@ fail2ban_jail_purge() {
 	    cat <<EOF > ${FAIL2BAN_CONFIG_PATH}jail.local
 ## Custom Generated Fail2ban jail.local Configuration! Do not edit, instead set ENV Vars
 ## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
-## Last Generated on `date`
+## Last Generated on $(date)
+
 EOF
 	fi
 }

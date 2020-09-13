@@ -43,6 +43,8 @@ RUN set -x && \
 # Cleanup
     chown -R postal. /app/ && \
     apk del .postal-build-deps && \
+    cd /etc/fail2ban && \
+    rm -rf fail2ban.conf fail2ban.d jail.conf jail.d paths-*.conf && \
     rm -rf /tmp/* /var/cache/apk/*
 
 ### Networking Setup

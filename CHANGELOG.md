@@ -1,3 +1,9 @@
+## 2.1.5 2020-09-13 <dave at tiredofit dot ca>
+
+   ### Changed
+      - Delete original fail2ban configuration as it throws errors with SSH
+
+
 ## 2.1.4 2020-09-13 <dave at tiredofit dot ca>
 
    ### Changed
