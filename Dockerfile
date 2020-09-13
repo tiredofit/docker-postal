@@ -21,6 +21,8 @@ RUN set -x && \
 	    \
     apk add -t .postal-run-deps \
             expect \
+            fail2ban \
+            gawk \
             nodejs \
             mariadb-client \
             mariadb-connector-c \
@@ -41,7 +43,7 @@ RUN set -x && \
 # Cleanup
     chown -R postal. /app/ && \
     apk del .postal-build-deps && \
-    rm -rf /tmp/* /var/cache/apk/* 
+    rm -rf /tmp/* /var/cache/apk/*
 
 ### Networking Setup
 EXPOSE 25 5000

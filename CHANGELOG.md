@@ -1,3 +1,17 @@
+## 2.1.4 2020-09-13 <dave at tiredofit dot ca>
+
+   ### Changed
+      - Fix Fail2ban
+
+
+## 2.1.3 2020-09-13 <dave at tiredofit dot ca>
+
+   ### Added
+      - Force Postal to run in background
+      - Introduce Fail2ban Support
+      - Introduce Log Rotation
+
+
 ## 2.1.2 2020-06-16 <dave at tiredofit dot ca>
 
    ### Changed

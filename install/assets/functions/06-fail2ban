@@ -1,0 +1,168 @@
+#!/usr/bin/with-contenv bash
+
+fail2ban_configure_logging() {
+	print_debug "Fail2ban: Configure Logging"
+	mkdir -p $(dirname ${FAIL2BAN_LOG_FILE})
+	touch ${FAIL2BAN_LOG_FILE}
+	sed -i "s|<FAIL2BAN_LOG_LOCATION>|$(dirname ${FAIL2BAN_LOG_FILE})|g" /etc/logrotate.d/fail2ban
+}
+
+fail2ban_create_data_dir() {
+	print_debug "Fail2ban: Creating Socket Directory"
+	mkdir -p /var/run/fail2ban
+	print_debug "Fail2ban: Configuring Filesystem"
+	if [ ! -f ${FAIL2BAN_CONFIG_PATH} ] ; then
+		print_debug "Fail2ban: Creating Config Dir"
+		mkdir -p ${FAIL2BAN_CONFIG_PATH}
+		cp -R /etc/fail2ban/* ${FAIL2BAN_CONFIG_PATH}
+	fi
+
+	print_debug "Fail2ban: Linking Config to Persistent Storage"
+	rm -rf /etc/fail2ban
+	ln -sf ${FAIL2BAN_CONFIG_PATH} /etc/fail2ban
+
+	print_debug "Fail2ban: Creating Data Dir"
+	mkdir -p ${FAIL2BAN_DB_PATH}
+
+	if [ "$FAIL2BAN_LOG_TYPE" = "FILE" ] ; then
+		print_debug "Fail2ban: Creating Log Directory"
+		mkdir -p $(dirname ${FAIL2BAN_LOG_FILE})
+		sed -i "s|<FAIL2BAN_LOG_PATH>|$(dirname ${FAIL2BAN_LOG_FILE})|g" /etc/logrotate.d/fail2ban
+	else
+		rm -rf /etc/logrotate.d/fail2ban
+	fi
+}
+
+fail2ban_create_config_jail() {
+	if [ "$SETUP_TYPE" = "AUTO" ]; then
+		print_debug "Fail2Ban: Creating Default Jail Configuration"
+		cat <<EOF > ${FAIL2BAN_CONFIG_PATH}jail.conf
+## Custom Generated Fail2ban jail.conf Configuration! Do not edit, instead set ENV Vars
+## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
+## Last Generated on `date`
+
+[DEFAULT]
+ignorself = ${FAIL2BAN_IGNORE_SELF}
+ignoreip = ${FAIL2BAN_IGNORE_IP}
+ignorecommand =
+bantime  = ${FAIL2BAN_TIME_BAN}
+findtime  = ${FAIL2BAN_TIME_FIND}
+maxretry = ${FAIL2BAN_MAX_RETRY}
+backend = ${FAIL2BAN_BACKEND}
+
+# "usedns" specifies if jails should trust hostnames in logs,
+#   warn when DNS lookups are performed, or ignore all hostnames in logs
+#
+# yes:   if a hostname is encountered, a DNS lookup will be performed.
+# warn:  if a hostname is encountered, a DNS lookup will be performed,
+#        but it will be logged as a warning.
+# no:    if a hostname is encountered, will not be used for banning,
+#        but it will be logged as info.
+# raw:   use raw value (no hostname), allow use it for no-host filters/actions (example user)
+usedns = ${FAIL2BAN_USE_DNS}
+
+logencoding = auto
+enabled = false
+mode = normal
+filter = %(__name__)s[mode=%(mode)s]
+destemail = root@localhost
+sender = root@<fq-hostname>
+mta = sendmail
+protocol = tcp
+chain = <known/chain>
+port = 0:65535
+fail2ban_agent = Fail2Ban/%(fail2ban_version)s
+banaction = iptables-multiport
+banaction_allports = iptables-allports
+action_ = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+action_mw = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+            %(mta)s-whois[name=%(__name__)s, sender="%(sender)s", dest="%(destemail)s", protocol="%(protocol)s", chain="%(chain)s"]
+action_mwl = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+             %(mta)s-whois-lines[name=%(__name__)s, sender="%(sender)s", dest="%(destemail)s", logpath=%(logpath)s, chain="%(chain)s"]
+action_xarf = %(banaction)s[name=%(__name__)s, bantime="%(bantime)s", port="%(port)s", protocol="%(protocol)s", chain="%(chain)s"]
+             xarf-login-attack[service=%(__name__)s, sender="%(sender)s", logpath=%(logpath)s, port="%(port)s"]
+action_cf_mwl = cloudflare[cfuser="%(cfemail)s", cftoken="%(cfapikey)s"]
+                %(mta)s-whois-lines[name=%(__name__)s, sender="%(sender)s", dest="%(destemail)s", logpath=%(logpath)s, chain="%(chain)s"]
+action_blocklist_de  = blocklist_de[email="%(sender)s", service=%(filter)s, apikey="%(blocklist_de_apikey)s", agent="%(fail2ban_agent)s"]
+action_badips = badips.py[category="%(__name__)s", banaction="%(banaction)s", agent="%(fail2ban_agent)s"]
+action_badips_report = badips[category="%(__name__)s", agent="%(fail2ban_agent)s"]
+action_abuseipdb = abuseipdb
+action = %(action_)s
+EOF
+	fi
+}
+
+fail2ban_create_config_main(){
+	if [ "$SETUP_TYPE" = "AUTO" ]; then
+		if [ "$FAIL2BAN_LOG_TYPE" = "CONSOLE" ] ; then
+			FAIL2BAN_LOG_FILE="STDOUT"
+		fi
+	    print_debug "Fail2ban: Configuring main config file"
+		cat <<EOF > ${FAIL2BAN_CONFIG_PATH}fail2ban.conf
+## Custom Generated fail2ban.conf Configuration! Do not edit, instead set ENV Vars
+## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
+## Last Generated on `date`
+
+[Definition]
+loglevel = ${FAIL2BAN_LOG_LEVEL}
+# Values: [ STDOUT | STDERR | SYSLOG | SYSOUT | FILE ]  Default: STDERR
+logtarget = ${FAIL2BAN_LOG_FILE}
+syslogsocket = auto
+socket = /var/run/fail2ban/fail2ban.sock
+pidfile = /var/run/fail2ban/fail2ban.pid
+# Values: [ None :memory: FILE ] Default: /var/lib/fail2ban/fail2ban.sqlite3
+dbfile = ${FAIL2BAN_DB_PATH}${FAIL2BAN_DB_FILE}
+dbpurgeage = ${FAIL2BAN_DB_PURGE_AGE}
+EOF
+	fi
+}
+
+fail2ban_create_filters() {
+	if [ "$SETUP_TYPE" = "AUTO" ]; then
+		print_debug "Fail2ban: Creating Filters"
+
+		# Postal
+		print_debug "Fail2ban: Filters - Postal"
+		cat <<EOF > ${FAIL2BAN_CONFIG_PATH}filter.d/postal.conf
+## Custom Generated filter.d/postal.conf Configuration! Do not edit, instead set ENV Vars
+## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
+## Last Generated on `date`
+
+# ------------------------
+# WARN: AUTH failure for ::ffff:(\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b)
+# ------------------------
+
+[Definition]
+failregex = WARN: AUTH failure for ::ffff:<HOST>
+ignoreregex =
+
+EOF
+	fi
+}
+
+fail2ban_jail_purge() {
+	if [ "$SETUP_TYPE" = "AUTO" ]; then
+	    print_debug "Fail2Ban: Purging Jails from Previous Run"
+	    cat <<EOF > ${FAIL2BAN_CONFIG_PATH}jail.local
+## Custom Generated Fail2ban jail.local Configuration! Do not edit, instead set ENV Vars
+## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
+## Last Generated on `date`
+EOF
+	fi
+}
+
+
+fail2ban_jail_create() {
+	if [ "$SETUP_TYPE" = "AUTO" ]; then
+		print_debug "Fail2Ban: Adding Jail - Postal"
+		cat <<EOF >> ${FAIL2BAN_CONFIG_PATH}jail.local
+[postal]
+enabled = true
+logpath = ${LOG_LOCATION}/smtp_server.log
+bantime = 86400
+findtime = 86400
+maxretry = 3
+
+EOF
+	fi
+}

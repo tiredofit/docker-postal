@@ -23,7 +23,7 @@ certificates() {
 
       cat > `dirname ${CA_CERT_FILE}`/$CA_NAME.conf << EOF
       [ ca ]
-      default_ca = $CA_NAME
+    t_ca = $CA_NAME
 
       [ $CA_NAME ]
       unique_subject = no
@@ -79,7 +79,7 @@ EOF
           print_debug "Certificates: No CA Found - Creating before generating certificates"
           certificates_create_certificate_authority
         fi
-      fi            
+      fi
             CERT_SUBJECT="${CA_SUBJECT}$(basename ${1%%.*})"
 
         if var_true $CREATE_CA ; then
@@ -94,8 +94,8 @@ EOF
         if [ ! -f ${1%%.*}.key ] ; then
           print_debug "Certificates: Creating Certificate: ${1}"
           silent eval "openssl req \
-              -new -x509 -nodes -days 3650 
-              -config /tmp/openssl.cnf 
+              -new -x509 -nodes -days 3650
+              -config /tmp/openssl.cnf
               -out ${1%%.*}.crt \
               -keyout ${1%%.*}.key"
         fi
@@ -190,10 +190,11 @@ configure_logging() {
   print_debug "Configuring Logging"
   mkdir -p ${LOG_LOCATION}
   chown -R postal: ${LOG_LOCATION}
+  sed -i "s|<LOG_LOCATION>|${LOG_LOCATION}|g" /etc/logrotate.d/postal
 }
 
 configure_postal() {
-   
+
    silent /app/bin/postal initialize-config
 ### Create Configuration
   if [ "$SETUP_TYPE" = "AUTO" ]; then
@@ -207,7 +208,7 @@ configure_postal() {
 EOF
                                 )
       done
-    print_debug "Writing Configuration to ${CONFIG_LOCATION}"      
+    print_debug "Writing Configuration to ${CONFIG_LOCATION}"
     cat <<EOF > ${CONFIG_LOCATION}
 web:
   host: ${WEB_HOST}
@@ -247,7 +248,7 @@ logging:
   stdout: ${LOG_CONSOLE}
   root: ${LOG_LOCATION}
   max_log_file_size: ${LOG_SIZE_MAX}
-  
+
 message_db:
   host: ${DB_HOST}
   port: ${DB_PORT}
@@ -328,6 +329,10 @@ if [ "${CONFIG_LOCATION}" != "/app/config/postal.yml" ] ; then
   ln -sf ${CONFIG_LOCATION} /app/config/postal.yml
 fi
 
+if var_true ${LOG_AUTH_FAILURE} ; then
+  gawk -i inplace '/535 Invalid credential/ && !x {print "          log \"\\e[33m   WARN: AUTH failure for #{@ip_address}\\e[0m\""; x=1} 1' /app/lib/postal/smtp_server/client.rb
+fi
+
 }
 
 check_rabbitmq() {
@@ -347,7 +352,7 @@ check_rabbitmq() {
 
 configure_tls() {
   print_debug "Configuring TLS"
-  if var_true $SMTP_SERVER_ENABLE_TLS ; then 
+  if var_true $SMTP_SERVER_ENABLE_TLS ; then
       certificates ${SMTP_SERVER_TLS_CERT}
   fi
 }

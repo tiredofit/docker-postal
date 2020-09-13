@@ -12,4 +12,10 @@ if var_false $LOG_CONSOLE ; then
 fi
 
 print_info "Starting postal"
-${console} /app/bin/postal run
+${console} /app/bin/postal start
+
+while :
+do
+	/app/bin/postal status
+	sleep 86400
+done

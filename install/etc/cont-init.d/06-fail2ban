@@ -1,0 +1,23 @@
+#!/usr/bin/with-contenv bash
+
+source /assets/functions/00-container
+source /assets/defaults/10-postal
+
+prepare_service
+PROCESS_NAME="fail2ban"
+
+if var_true "${ENABLE_FAIL2BAN}" ; then
+	print_notice "Enabling Fail2ban"
+    fail2ban_configure_logging
+	fail2ban_create_data_dir
+	fail2ban_create_config_main
+	fail2ban_create_config_jail
+	fail2ban_create_filters
+	fail2ban_jail_purge
+	fail2ban_jail_create
+else
+    print_debug "Disabling Fail2Ban"
+    service_stop 06-fail2ban
+fi
+
+liftoff
