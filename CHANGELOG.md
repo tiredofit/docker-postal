@@ -1,3 +1,9 @@
+## 2.1.6 2020-09-27 <dave at tiredofit dot ca>
+
+   ### Changed
+      - Fix logrotate
+
+
 ## 2.1.5 2020-09-13 <dave at tiredofit dot ca>
 
    ### Changed

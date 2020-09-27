@@ -8,6 +8,7 @@ db_ready mariadb
 check_clamav
 check_rabbitmq
 check_spamassassin
+configure_logging
 configure_tls
 configure_postal
 
