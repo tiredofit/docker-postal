@@ -64,7 +64,7 @@ installation.
 
 
 ```bash
-docker pull hub.docker.com/tiredofit/postal:(imagetag)
+docker pull tiredofit/postal:(imagetag)
 ```
 
 The following image tags are available:
