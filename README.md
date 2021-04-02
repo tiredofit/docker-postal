@@ -107,13 +107,13 @@ available options that can be used to customize your installation.
 | `DNS_RETURN_PATH_PREFIX`   | Custom Return Path Prefix                           | `psrp`                 |
 
 #### Security Settings
-| Parameter            | Description                                             | Default |
-| -------------------- | ------------------------------------------------------- | ------- |
-| `ENABLE_FAIL2BAN`    | Block hsots that repeatedly fail authentication         | `TRUE`  |
-| `FAIL2BAN_LOG_FILE`  | Log Location for Fail2ban `/logs/fail2ban/fail2ban.log` |
-| `FAIL2BAN_TIME_FIND` | Track failures for this time period                     | `10m`   |
-| `FAIL2BAN_TIME_BAN`  | Time to ban repeat offenders                            | `10m`   |
-| `FAIL2BAN_MAX_RETRY` | Ban after how many tries during time period             | `5`     |
+| Parameter            | Description                                             | Default                       |
+| -------------------- | ------------------------------------------------------- | ----------------------------- |
+| `ENABLE_FAIL2BAN`    | Block hsots that repeatedly fail authentication         | `TRUE`                        |
+| `FAIL2BAN_LOG_FILE`  | Log Location for Fail2ban                               | `/logs/fail2ban/fail2ban.log` | 
+| `FAIL2BAN_TIME_FIND` | Track failures for this time period                     | `10m`                         |
+| `FAIL2BAN_TIME_BAN`  | Time to ban repeat offenders                            | `10m`                         |
+| `FAIL2BAN_MAX_RETRY` | Ban after how many tries during time period             | `5`                           |
 
 
 #### Performance Settings
@@ -162,6 +162,8 @@ available options that can be used to customize your installation.
 
 #### SMTP Settings
 ##### Client
+| Parameter       | Description                     | Default |
+| --------------- | ------------------------------- | ------- |
 | `SMTP_CLIENT_OPEN_TIMEOUT` | Timeout for an Open Connection in seconds | `30` |
 | `SMTP_CLIENT_READ_TIMEOUT` | Timeout for Reading Data in seconds | `60` |
 
@@ -189,6 +191,7 @@ available options that can be used to customize your installation.
 | `SMTP_PORT`         | SMTP Port to be used to send messages from Postal Management System to Users   | `25`                    |
 | `SMTP_USER`         | Username to authenticate to SMTP Server                                        |                         |
 | `SMTP_PASS`         | Password to authenticate to SMTP Server                                        |                         |
+
 ##### Relay
 | Parameter             | Description                                  | Default |
 | --------------------- | -------------------------------------------- | ------- |
