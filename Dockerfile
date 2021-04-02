@@ -1,23 +1,24 @@
-FROM tiredofit/ruby:2.6-alpine
+FROM tiredofit/nginx:alpine-3.13
 LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
 
-ENV POSTAL_CONFIG_ROOT=/app/config \
+ENV POSTAL_VERSION=master \
+    POSTAL_REPO_URL=https://github.com/postalhq/postal \
+    POSTAL_CONFIG_ROOT=/app/config \
     ENABLE_SMTP=FALSE \
     ZABBIX_HOSTNAME=postal-app
 
 RUN set -x && \
-# Create User
     addgroup -g 2525 postal && \
     adduser -S -D -G postal -u 2525 -h /app/ postal && \
     \
-# Build Dependencies
     apk update && \
     apk upgrade && \
     apk add -t .postal-build-deps \
             build-base \
             git \
             mariadb-dev \
-            && \
+            ruby-dev \
+    && \
 	    \
     apk add -t .postal-run-deps \
             expect \
@@ -27,10 +28,11 @@ RUN set -x && \
             mariadb-client \
             mariadb-connector-c \
             openssl \
+            ruby \
             && \
             \
 ### Fetch Source and install Ruby Dependencies
-    gem install bundler && \
+    gem install bundler -v 1.17.2 && \
     gem install procodile && \
     git clone https://github.com/postalhq/postal /app/ && \
     \

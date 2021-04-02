@@ -193,6 +193,23 @@ configure_logging() {
   sed -i "s|<LOG_LOCATION>|${LOG_LOCATION}|g" /etc/logrotate.d/postal
 }
 
+configure_nginx(){
+  print_debug "Configuring Nginx"
+  sed -i "s|server_name localhost|server_name ${WEB_HOST}|g" /etc/nginx/conf.d/default.conf
+  if var_true "${ENABLE_TRACKING}" ; then
+    sed -i "s|<LISTEN_PORT>|${NGINX_LISTEN_PORT}|g" /etc/nginx/conf.available/tracking.conf
+    sed -i "s|<DNS_TRACK_DOMAIN>|${DNS_TRACK_DOMAIN}|g" /etc/nginx/conf.available/tracking.conf
+    if [ "${FAST_SERVER_BIND_IP}" = "0.0.0.0" ]; then
+      fast_server_bind_ip="127.0.0.1"
+    else
+      fast_server_bind_ip="${FAST_SERVER_BIND_IP}"
+    fi
+    sed -i "s|<FAST_SERVER_BIND_IP>|${fast_server_bind_ip}|g" /etc/nginx/conf.available/tracking.conf
+    sed -i "s|<FAST_SERVER_BIND_PORT>|${FAST_SERVER_BIND_PORT}|g" /etc/nginx/conf.available/tracking.conf
+    ln -s /etc/nginx/conf.available/tracking.conf /etc/nginx/conf.d/
+  fi
+}
+
 configure_postal() {
 
    silent /app/bin/postal initialize-config
@@ -223,11 +240,11 @@ general:
   use_local_ns_for_domains: false
 
 fast_server:
-  enabled: false
-  bind_address:
-  port: 80
-  ssl_port: 443
-  proxy_protocol: false
+  enabled: ${ENABLE_FAST_SERVER}
+  bind_address: ${FAST_SERVER_BIND_ADDRESS}
+  port: ${FAST_SERVER_BIND_PORT}
+  ssl_port: ${FAST_SERVER_BIND_PORT_TLS}
+  proxy_protocol: ${FAST_SERVER_ENABLE_PROXY_PROTOCOL}
   default_private_key_path: # Defaults to config/fast_server.key
   default_tls_certificate_path: # Defaults to config/fast_server.cert
 
