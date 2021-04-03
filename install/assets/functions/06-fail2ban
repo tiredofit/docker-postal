@@ -39,7 +39,7 @@ fail2ban_create_config_jail() {
 		cat <<EOF > ${FAIL2BAN_CONFIG_PATH}jail.conf
 ## Custom Generated Fail2ban jail.conf Configuration! Do not edit, instead set ENV Vars
 ## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
-## Last Generated on `date`
+## Last Generated on $(date)
 
 [DEFAULT]
 ignorself = ${FAIL2BAN_IGNORE_SELF}
@@ -101,7 +101,7 @@ fail2ban_create_config_main(){
 		cat <<EOF > ${FAIL2BAN_CONFIG_PATH}fail2ban.conf
 ## Custom Generated fail2ban.conf Configuration! Do not edit, instead set ENV Vars
 ## If you want to use your own configuration files set SETUP_TYPE=MANUAL when starting container
-## Last Generated on `date`
+## Last Generated on $(date)
 
 [Definition]
 loglevel = ${FAIL2BAN_LOG_LEVEL}
