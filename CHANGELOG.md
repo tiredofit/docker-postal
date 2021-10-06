@@ -1,3 +1,9 @@
+## 3.0.2 2021-10-06 <dave at tiredofit dot ca>
+
+   ### Changed
+      - Add more logrotate scripts for some logfiles
+
+
 ## 3.0.1 2021-10-06 <dave at tiredofit dot ca>
 
    ### Changed

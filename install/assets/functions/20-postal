@@ -243,7 +243,9 @@ configure_logging() {
     create_logrotate postal-requeuer ${LOG_PATH}/message_requeuer.log none postal postal
     create_logrotate postal-puma-access ${LOG_PATH}/puma-access.log none postal postal
     create_logrotate postal-puma-error ${LOG_PATH}/puma-error.log none postal postal
+    create_logrotate postal-slowdb ${LOG_PATH}/slow_message_db_queries.log none postal postal
     create_logrotate postal-smtp ${LOG_PATH}/smtp_server.log none postal postal
+    create_logrotate postal-webhooks ${LOG_PATH}/webhooks.log none postal postal
     create_logrotate postal-worker ${LOG_PATH}/worker.log none postal postal
   fi
 }
