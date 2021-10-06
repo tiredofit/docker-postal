@@ -11,7 +11,7 @@
 
 ## About
 
-Dockerfile to build a [Postal](https://github.com/atech/postal) SMTP server for sending and receiving SMTP / HTTP API email.
+Dockerfile to build a [Postal](https://github.com/postalserver/postal) SMTP server for sending and receiving SMTP / HTTP API email.
 
 * Contains Fail2Ban for blocking repeat authentication offenders
 
@@ -33,13 +33,13 @@ Clone this repository and build the image with `docker build <arguments> (imagen
 ### Prebuilt Images
 Builds of the image are available on [Docker Hub](https://hub.docker.com/r/tiredofit/postal) and is the recommended method of installation.
 
-The following image tags are available along with their taged release based on what's written in the [Changelog](CHANGELOG.md):
+The following image tags are available along with their tagged release based on what's written in the [Changelog](CHANGELOG.md):
 
 | Container OS | Tag       |
 | ------------ | --------- |
 | Alpine       | `:latest` |
 
-#### Multi Archictecture
+#### Multi Architecture
 Images are built primarily for `amd64` architecture, and may also include builds for `arm/v6`, `arm/v7`, `arm64` and others. These variants are all unsupported. Consider [sponsoring](https://github.com/sponsors/tiredofit) my work so that I can work with various hardware. To see if this image supports multiple architecures, type `docker manifest (image):(tag)`
 
 ## Configuration
@@ -51,7 +51,16 @@ Images are built primarily for `amd64` architecture, and may also include builds
 
 * Set various [environment variables](#environment-variables) to understand the capabilities of this image.
 * Map [persistent storage](#data-volumes) for access to configuration and data files for backup.
-*
+
+### Persistent Storage
+
+The following directories are used for configuration and can be mapped for persistent storage.
+
+| Directory        | Description                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------- |
+| `/config/`       | Auto generated Postal Config and Signing Key resides here                                            |
+| `/logs/`         | Logfiles                                                                                             |
+| `/assets/custom` | *Optional* Use this to drop files overop of the Postal sourcode for cherry picked overrides of files |
 ### Environment Variables
 
 #### Base Images used
@@ -63,8 +72,14 @@ Be sure to view the following repositories to understand all the customizable op
 | Image                                                  | Description                            |
 | ------------------------------------------------------ | -------------------------------------- |
 | [OS Base](https://github.com/tiredofit/docker-alpine/) | Customized Image based on Alpine Linux |
-| [Nginx](https://github.com/tiredofit/docker-nginx/)    | Nginx webserver                        |
 
+#### Admin Accounts
+| Parameter   | Description              | Default              |
+| ----------- | ------------------------ | -------------------- |
+| ADMIN_EMAIL | Email address of admin   | `postal@example.com` |
+| ADMIN_FNAME | Name of Admin First Name | `Postal`             |
+| ADMIN_LNAME | Name of Admin Last Name  | `Admin`              |
+| ADMIN_PASS  | Password of Admin user   | `PostalMailServer`   |
 #### Application Settings
 | Parameter                 | Description                              | Default |
 | ------------------------- | ---------------------------------------- | ------- |
@@ -95,21 +110,18 @@ Be sure to view the following repositories to understand all the customizable op
 | `FAIL2BAN_TIME_BAN`  | Time to ban repeat offenders                    | `10m`                         |
 | `FAIL2BAN_MAX_RETRY` | Ban after how many tries during time period     | `5`                           |
 
-
 #### Performance Settings
 | Parameter         | Description                  | Default |
 | ----------------- | ---------------------------- | ------- |
 | `WORKERS_AMOUNT`  | Amount of Workers            | `1`     |
 | `WORKERS_THREADS` | Amount of Threads per worker | `4`     |
 
-
 #### Logging Settings
-| Parameter          | Description                                              | Default  |
-| ------------------ | -------------------------------------------------------- | -------- |
-| `LOG_AUTH_FAILURE` | Log Authentication Failures (Used for Fail2ban blocking) | `TRUE`   |
-| `LOG_CONSOLE`      | Log to Stdout Console `true` or `false`                  | `true`   |
-| `LOG_LOCATION`     | Log Location                                             | `/logs/` |
-| `LOG_SIZE_MAX`     | Maximum Log Size in KB                                   | `9999`   |
+| Parameter      | Description                             | Default  |
+| -------------- | --------------------------------------- | -------- |
+| `LOG_CONSOLE`  | Log to Stdout Console `true` or `false` | `true`   |
+| `LOG_PATH`     | Log Location                            | `/logs/` |
+| `LOG_SIZE_MAX` | Maximum Log Size in KB                  | `9999`   |
 
 #### Database Settings
 | Parameter        | Description                                                                            | Default |
@@ -132,6 +144,20 @@ Be sure to view the following repositories to understand all the customizable op
 | `ENABLE_SPAMASSASSIN` | Enable Spamassassin `true` or `false` | `false` |
 | `SPAMASSASSIN_HOST`   | Hostname of Spamassassin daemon       |         |
 | `SPAMASSASSIN_PORT`   | TCP Port of spamassassin daemon       | `737`   |
+
+| Parameter       | Description                              | Default |
+| --------------- | ---------------------------------------- | ------- |
+| `ENABLE_RSPAMD` | Enable RSpamD checking `true` or `false` | `false` |
+| `RSPAMD_FLAGS`  | Flags to pass to rspamd daemon           | `null`  |
+| `RSPAMD_HOST`   | Hostname of rspamd daemon                |         |
+| `RSPAMD_PASS`   | RSpamd controller password               | `null`  |
+| `RSPAMD_PORT`   | TCP Port of rspamd daemon                | `11334` |
+| `RSPAMD_SSL`    | Use SSL for connecting to rspamd         | `FALSE` |
+
+| Parameter                | Description                | Default |
+| ------------------------ | -------------------------- | ------- |
+| `SPAM_THRESHOLD`         | Amount to classify as Spam | `5.0`   |
+| `SPAM_FAILURE_THRESHOLD` | Amount to fail as Spam     | `5.0`   |
 
 #### Anti Virus Settings
 | Parameter       | Description                     | Default |
@@ -180,19 +206,21 @@ Be sure to view the following repositories to understand all the customizable op
 | `SMTP_RELAY_SSL_MODE` | Relay SSL / TLS Mode                         | `Auto`  |
 
 #### Other Settings
-| Parameter                   | Description                                                                  | Default                  |
-| --------------------------- | ---------------------------------------------------------------------------- | ------------------------ |
-| `CONFIG_LOCATION`           | Configuration File                                                           | `/app/config/postal.yml` |
-| `SETUP_TYPE`                | Choose `AUTO` or `MANUAL` Setup type - Auto uses these environment variables | `AUTO`                   |
-| `FAST_SERVER_BIND_IP`       | Bind IP for the Web Interface                                                | `0.0.0.0`                |
-| `FAST_SERVER_BIND_PORT_TLS` | Bind Port for the TLS Tracking Service                                       | `8443`                   |
-| `FAST_SERVER_BIND_PORT`     | Bind Port for the Tracking Server                                            | `8080`                   |
-| `WEB_BIND_IP`               | Bind IP for the Web Interface                                                | `0.0.0.0`                |
-| `WEB_BIND_PORT`             | Bind Port for the Web Interface                                              | `5000`                   |
-| `WEB_HOSTNAME`              | Hostname for Web Interface                                                   | `postal.example.com`     |
-| `WEB_MAX_THREADS`           | Max Threads for Web Interface                                                | `5`                      |
-| `WEB_PROTOCOL`              | Protocol for Web Interface `http` or `https`                                 | `http`                   |
-
+| Parameter                   | Description                                                                  | Default              |
+| --------------------------- | ---------------------------------------------------------------------------- | -------------------- |
+| `CONFIG_FILE`               | Configuration File                                                           | `postal.yml`         |
+| `CONFIG_PATH`               | Configuration Path                                                           | `/config/`           |
+| `FAST_SERVER_BIND_IP`       | Bind IP for the Web Interface                                                | `0.0.0.0`            |
+| `FAST_SERVER_BIND_PORT_TLS` | Bind Port for the TLS Tracking Service                                       | `8443`               |
+| `FAST_SERVER_BIND_PORT`     | Bind Port for the Tracking Server                                            | `8080`               |
+| `SETUP_TYPE`                | Choose `AUTO` or `MANUAL` Setup type - Auto uses these environment variables | `AUTO`               |
+| `SIGNING_KEY_FILE`          | Signing Key File                                                             | `signing.key`        |
+| `SIGNING_KEY_SIZE`          | Signing Key Size                                                             | `1024`               |
+| `WEB_BIND_IP`               | Bind IP for the Web Interface                                                | `0.0.0.0`            |
+| `WEB_BIND_PORT`             | Bind Port for the Web Interface                                              | `5000`               |
+| `WEB_HOSTNAME`              | Hostname for Web Interface                                                   | `postal.example.com` |
+| `WEB_MAX_THREADS`           | Max Threads for Web Interface                                                | `5`                  |
+| `WEB_PROTOCOL`              | Protocol for Web Interface `http` or `https`                                 | `http`               |
 ### Networking
 
 | Port   | Description            |

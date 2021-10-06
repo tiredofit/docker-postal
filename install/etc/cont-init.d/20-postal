@@ -7,10 +7,14 @@ sanity_db
 db_ready mariadb
 check_clamav
 check_rabbitmq
+check_rspamd
 check_spamassassin
+bootstrap
 configure_logging
 configure_tls
 configure_postal
+custom_assets
+compile_assets
 
 if [[ $(mysql -h ${DB_HOST} -u${DB_USER} -p${DB_PASS} -s --skip-column-names -e "SELECT COUNT(DISTINCT table_name) FROM information_schema.columns WHERE table_schema = '"$DB_NAME"'") == 0 ]]; then
   print_warn "Detecting new Install. Initializing Database"
@@ -20,7 +24,8 @@ if [[ $(mysql -h ${DB_HOST} -u${DB_USER} -p${DB_PASS} -s --skip-column-names -e 
   fi
   initialize_database
 else
-  silent /app/bin/postal upgrade
+  cd /app/
+  silent sudo -HEu postal bundle exec rake db:migrate
 fi
 
 chown -R postal: /app/

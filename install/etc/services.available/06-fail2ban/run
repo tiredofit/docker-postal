@@ -13,5 +13,5 @@ if [ "$FAIL2BAN_LOG_TYPE" = "FILE" ] ; then
 fi
 
 sleep 180
-print_info "Starting Fail2ban"
+print_start "Starting Fail2ban"
 ${silent_arg} fail2ban-server -f

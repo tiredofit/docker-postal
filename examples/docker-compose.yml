@@ -2,7 +2,7 @@ version: '3.7'
 services:
 
   postal-app:
-    image: tiredofit/postal
+    image: tiredofit/postal:latest
     container_name: postal-app
     ports:
       - 25:2525
@@ -15,15 +15,15 @@ services:
       - traefik.backend=postal-app
     volumes:
       - ./logs/postal:/logs
-    environment: 
-      - ZABBIX_HOSTNAME=postal-app
+    environment:
+      - CONTAINER_NAME=postal-app
 
       - DB_HOST=postal-db
       - DB_PORT=3306
       - DB_NAME=postal
       - DB_USER=postal
       - DB_PASS=postalpass
-    
+
     ## A great idea is to delete this block after first install.
       - DB_ROOT_PASS=rootpassword
       - ADMIN_EMAIL=example@hostname.com
@@ -40,9 +40,12 @@ services:
       - ENABLE_SPAMASSASSIN=false
       - SPAMASSASSIN_HOST=postal-spamassassin
 
+      - ENABLE_RSPAMD=false
+      - RSPAMD_HOST=postal-rspamd
+
       - ENABLE_CLAMAV=false
       - CLAMAV_HOST=postal-clamav
-  
+
       - DNS_HOSTNAME=postal.example.com
       - DNS_MX=mx.example.com
       - DNS_RETURN_PATH=rp.example.com
@@ -68,29 +71,29 @@ services:
     restart: always
 
   postal-db:
-    image: tiredofit/mariadb
+    image: tiredofit/mariadb:latest
     container_name: postal-db
     volumes:
       - ./db:/var/lib/mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=rootpassword
-      - MYSQL_DATABASE=postal
-      - MYSQL_USER=postal
-      - MYSQL_PASSWORD=postalpass
-      - ZABBIX_HOSTNAME=postal-db
+      - ROOT_PASS=rootpassword
+      - DB_NAME=postal
+      - DB_USER=postal
+      - DB_PASS=postalpass
+      - CONTAINER_NAME=postal-db
     networks:
       - services
     restart: always
 
   postal-db-backup:
-    image: tiredofit/db-backup
+    image: tiredofit/db-backup:latest
     container_name: postal-db-backup
     links:
       - postal-db
     volumes:
       - ./dbbackup:/backup
     environment:
-      - ZABBIX_HOSTNAME=postal-db-backup
+      - CONTAINER_NAME=postal-db-backup
       - DB_HOST=postal-db
       - DB_TYPE=mariadb
       - DB_NAME=postal
@@ -99,7 +102,7 @@ services:
       - DB_DUMP_FREQ=1440
       - DB_DUMP_BEGIN=0000
       - DB_CLEANUP_TIME=8640
-      - COMPRESSION=BZ
+      - COMPRESSION=ZSTD
       - MD5=TRUE
     networks:
       - services
@@ -112,7 +115,7 @@ services:
       - RABBITMQ_DEFAULT_USER=postal
       - RABBITMQ_DEFAULT_PASS=password
       - RABBITMQ_DEFAULT_VHOST=/postal
-      - ZABBIX_HOSTNAME=postal-rabbitmq
+      - CONTAINER_NAME=postal-rabbitmq
     networks:
       - services
     restart: always
@@ -124,7 +127,7 @@ services:
       - ./data/clamav:/data
       - ./logs/clamav:/var/log/clamav
     environment:
-      - ZABBIX_HOSTNAME=postal-clamav
+      - CONTAINER_NAME=postal-clamav
     networks:
       - services
     restart: always
@@ -137,7 +140,7 @@ services:
       - ./data/spamassassin/conf:/etc/mail/spamassassin
       - ./data/spamassassin/data:/var/lib/spamassassin
     environment:
-      - ZABBIX_HOSTNAME=postal-spamassassin
+      - CONTAINER_NAME=postal-spamassassin
     networks:
       - services
     restart: always

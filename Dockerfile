@@ -1,11 +1,11 @@
-FROM tiredofit/nginx:alpine-3.13
-LABEL maintainer="Dave Conroy (dave at tiredofit dot ca)"
+FROM docker.io/tiredofit/alpine:3.14
+LABEL maintainer="Dave Conroy (github.com/tiredofit)"
 
 ENV POSTAL_VERSION=master \
     POSTAL_REPO_URL=https://github.com/postalhq/postal \
-    POSTAL_CONFIG_ROOT=/app/config \
-    ENABLE_SMTP=FALSE \
-    ZABBIX_HOSTNAME=postal-app
+    POSTAL_CONFIG_ROOT=/app/config/ \
+    CONTAINER_ENABLE_MESSAGING=FALSE \
+    RAILS_ENV=production
 
 RUN set -x && \
     addgroup -g 2525 postal && \
@@ -18,8 +18,8 @@ RUN set -x && \
             git \
             mariadb-dev \
             ruby-dev \
-    && \
-	    \
+            && \
+    \
     apk add -t .postal-run-deps \
             expect \
             fail2ban \
@@ -29,24 +29,27 @@ RUN set -x && \
             mariadb-connector-c \
             openssl \
             ruby \
+            ruby-bigdecimal \
+            ruby-io-console \
+            ruby-etc \
             && \
-            \
-### Fetch Source and install Ruby Dependencies
+    \
     gem install bundler -v 1.17.2 && \
-    gem install procodile && \
+    \
+### Fetch Source and install Ruby Dependencies
     git clone https://github.com/postalhq/postal /app/ && \
-    \
-### Install Ruby Gems and dependencies
-    /app/bin/postal bundle /app/vendor/bundle && \
-    \
-### Housekeeping
-    ln -s /usr/local/bundle/bin/procodile /usr/sbin && \
+    cd /app && \
+    bundle install -j "$(nproc)" && \
+    if [ $POSTAL_VERSION = "main" ] || [ $POSTAL_VERSION = "master" ] ; then git -C /app rev-parse HEAD > /app/VERSION ; else echo $POSTAL_VERSION > /app/VERSION ; fi ; \
     \
 # Cleanup
     chown -R postal. /app/ && \
-    apk del .postal-build-deps && \
+    rm -rf /app/docker-compose.yml /app/Dockerfile /app/Makefile && \
+    rm -rf /app/log & \
+    rm -rf /root/.bundle /root/.gem && \
     cd /etc/fail2ban && \
     rm -rf fail2ban.conf fail2ban.d jail.conf jail.d paths-*.conf && \
+    apk del .postal-build-deps && \
     rm -rf /tmp/* /var/cache/apk/*
 
 ### Networking Setup

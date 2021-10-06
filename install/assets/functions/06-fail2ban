@@ -2,35 +2,29 @@
 
 fail2ban_configure_logging() {
 	print_debug "Fail2ban: Configure Logging"
-	mkdir -p $(dirname ${FAIL2BAN_LOG_FILE})
-	touch ${FAIL2BAN_LOG_FILE}
-	sed -i "s|<FAIL2BAN_LOG_LOCATION>|$(dirname ${FAIL2BAN_LOG_FILE})|g" /etc/logrotate.d/fail2ban
+	if [ "${FAIL2BAN_LOG_TYPE}" = "FILE" ] ; then
+		mkdir -p "${FAIL2BAN_LOG_PATH}"
+		touch "${FAIL2BAN_LOG_PATH}"/"${FAIL2BAN_LOG_FILE}"
+		create_logrotate fail2ban "${FAIL2BAN_LOG_PATH}"/"${FAIL2BAN_LOG_FILE}"
+	fi
 }
 
 fail2ban_create_data_dir() {
 	print_debug "Fail2ban: Creating Socket Directory"
 	mkdir -p /var/run/fail2ban
 	print_debug "Fail2ban: Configuring Filesystem"
-	if [ ! -f ${FAIL2BAN_CONFIG_PATH} ] ; then
+	if [ ! -f "${FAIL2BAN_CONFIG_PATH}" ] ; then
 		print_debug "Fail2ban: Creating Config Dir"
-		mkdir -p ${FAIL2BAN_CONFIG_PATH}
-		cp -R /etc/fail2ban/* ${FAIL2BAN_CONFIG_PATH}
+		mkdir -p "${FAIL2BAN_CONFIG_PATH}"
+		cp -R /etc/fail2ban/* "${FAIL2BAN_CONFIG_PATH}"
 	fi
 
 	print_debug "Fail2ban: Linking Config to Persistent Storage"
 	rm -rf /etc/fail2ban
-	ln -sf ${FAIL2BAN_CONFIG_PATH} /etc/fail2ban
+	ln -sf "${FAIL2BAN_CONFIG_PATH}" /etc/fail2ban
 
 	print_debug "Fail2ban: Creating Data Dir"
-	mkdir -p ${FAIL2BAN_DB_PATH}
-
-	if [ "$FAIL2BAN_LOG_TYPE" = "FILE" ] ; then
-		print_debug "Fail2ban: Creating Log Directory"
-		mkdir -p $(dirname ${FAIL2BAN_LOG_FILE})
-		sed -i "s|<FAIL2BAN_LOG_PATH>|$(dirname ${FAIL2BAN_LOG_FILE})|g" /etc/logrotate.d/fail2ban
-	else
-		rm -rf /etc/logrotate.d/fail2ban
-	fi
+	mkdir -p "${FAIL2BAN_DB_PATH}"
 }
 
 fail2ban_create_config_jail() {
@@ -95,6 +89,7 @@ EOF
 fail2ban_create_config_main(){
 	if [ "$SETUP_TYPE" = "AUTO" ]; then
 		if [ "$FAIL2BAN_LOG_TYPE" = "CONSOLE" ] ; then
+			unset FAIL2BAN_LOG_PATH
 			FAIL2BAN_LOG_FILE="STDOUT"
 		fi
 	    print_debug "Fail2ban: Configuring main config file"
@@ -106,7 +101,7 @@ fail2ban_create_config_main(){
 [Definition]
 loglevel = ${FAIL2BAN_LOG_LEVEL}
 # Values: [ STDOUT | STDERR | SYSLOG | SYSOUT | FILE ]  Default: STDERR
-logtarget = ${FAIL2BAN_LOG_FILE}
+logtarget = ${FAIL2BAN_LOG_PATH}${FAIL2BAN_LOG_FILE}
 syslogsocket = auto
 socket = /var/run/fail2ban/fail2ban.sock
 pidfile = /var/run/fail2ban/fail2ban.pid
@@ -159,7 +154,7 @@ fail2ban_jail_create() {
 		cat <<EOF >> ${FAIL2BAN_CONFIG_PATH}jail.local
 [postal]
 enabled = true
-logpath = ${LOG_LOCATION}/smtp_server.log
+logpath = ${LOG_PATH}/smtp_server.log
 bantime = 86400
 findtime = 86400
 maxretry = 3

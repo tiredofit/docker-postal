@@ -1,27 +1,36 @@
 #!/usr/bin/with-contenv /bin/bash
 
+bootstrap() {
+  mkdir -p ${CONFIG_PATH}
+  if [ ! -f "${CONFIG_PATH}"/"${SIGNING_KEY_FILE}" ]; then
+            print_notice "Creating Signing Private Key"
+            silent openssl genrsa -out $"${CONFIG_PATH}"/"${SIGNING_KEY_FILE}" ${SIGNING_KEY_BITS}
+            chmod 644 "${CONFIG_PATH}"/"${SIGNING_KEY_FILE}"
+  fi
+}
+
 certificates() {
   CA_NAME=postal-selfsigned-ca
   CA_SUBJECT=${CA_SUBJECT:-"/C=XX/ST=Postal/L=Postal/O=Postal/CN="}
   CA_CERT_SUBJECT=${CA_CERT_SUBJECT:-${CA_SUBJECT}${CA_NAME}}
   CA_CERT_FILE=${CA_CERT_FILE:-"/certs/${CA_NAME}/${CA_NAME}.crt"}
-  CA_KEY_FILE=${CA_KEY_FILE:-"`dirname ${CA_CERT_FILE}`/${CA_NAME}.key"}
+  CA_KEY_FILE=${CA_KEY_FILE:-"$(dirname ${CA_CERT_FILE})/${CA_NAME}.key"}
   CREATE_CA=${CREATE_CA:-"TRUE"}
 
   certificates_create_certificate_authority() {
     if [ ! -f ${CA_CERT_FILE} ] ; then
 
       print_debug "Certificates: Creating Self Signed Certificate Authority"
-      mkdir -p `dirname ${CA_CERT_FILE}`
-      echo "000a" > `dirname ${CA_CERT_FILE}`/serial
-      touch `dirname ${CA_CERT_FILE}`/certindex
+      mkdir -p $(dirname ${CA_CERT_FILE})
+      echo "000a" > $(dirname ${CA_CERT_FILE})/serial
+      touch $(dirname ${CA_CERT_FILE})/certindex
 
       silent eval "openssl req \
             -newkey rsa:4096 -keyout ${CA_KEY_FILE} \
             -x509 -days 3650 -nodes -out ${CA_CERT_FILE} \
             -subj \"${CA_CERT_SUBJECT}\""
 
-      cat > `dirname ${CA_CERT_FILE}`/$CA_NAME.conf << EOF
+      cat > $(dirname ${CA_CERT_FILE})/$CA_NAME.conf << EOF
       [ ca ]
     t_ca = $CA_NAME
 
@@ -29,9 +38,9 @@ certificates() {
       unique_subject = no
       new_certs_dir = .
       certificate = ${CA_CERT_FILE}
-      database = `dirname ${CA_CERT_FILE}`/certindex
+      database = $(dirname ${CA_CERT_FILE})/certindex
       private_key = ${CA_KEY_FILE}
-      serial = `dirname ${CA_CERT_FILE}`/serial
+      serial = $(dirname ${CA_CERT_FILE})/serial
       default_days = 3650
       default_md = default
       policy = ${CA_NAME}_policy
@@ -74,7 +83,7 @@ EOF
   certificates_create_certificate() {
       if [ "$1" != "" ] ; then
 
-        if var_true $CREATE_CA ; then
+        if var_true "${CREATE_CA}" ; then
             if [ ! -f ${CA_CERT_FILE} ] || [ ! -f ${CA_KEY_FILE} ] ; then
           print_debug "Certificates: No CA Found - Creating before generating certificates"
           certificates_create_certificate_authority
@@ -104,7 +113,7 @@ EOF
         if var_true $CREATE_CA ; then
         if [ ! -f ${1%%.*}.cert ] ; then
           print_debug "Certificates: Signing Certificate: ${1}"
-          silent eval "openssl ca -batch -config `dirname ${CA_CERT_FILE}`/${CA_NAME}.conf -notext -in ${1%%.*}.csr -out ${1%%.*}.crt"
+          silent eval "openssl ca -batch -config $(dirname ${CA_CERT_FILE})/${CA_NAME}.conf -notext -in ${1%%.*}.csr -out ${1%%.*}.crt"
           rm -rf $(tail -n 1 $(dirname ${CA_CERT_FILE})/certindex | awk '{print $3}').pem
           rm -rf ${1%%.*}.csr
         fi
@@ -132,15 +141,15 @@ EOF
   certificates_check_certificates() {
     print_debug "Certificates: Checking Existence of ${1}"
     if [ ! -f ${1} ] ; then
-          mkdir -p `dirname ${1}`
+          mkdir -p $(dirname ${1})
           certificates_create_certificate ${1}
     fi
   }
 
   certificates_trust_ca() {
-    if var_true $CREATE_CA ; then
+    if var_true "${CREATE_CA}" ; then
       if [ -f ${CA_CERT_FILE} ]; then
-        if [ ! -L /usr/local/share/ca-certificates/`basename ${CA_CERT_FILE}` ] ; then
+        if [ ! -L /usr/local/share/ca-certificates/$(basename ${CA_CERT_FILE}) ] ; then
           print_debug "Certificates: Trusting CA ${CA_NAME}"
           ln -sf ${CA_CERT_FILE} /usr/local/share/ca-certificates/
           silent update-ca-certificates
@@ -161,7 +170,7 @@ EOF
 
 check_clamav(){
   print_debug "Checking Clam Antivirus"
-  if var_true $ENABLE_CLAMAV ; then
+  if var_true "${ENABLE_CLAMAV}" ; then
     sanity_var CLAMAV_HOST "ClamAV Host"
     COUNTER=0
     while ! (silent nc -z ${CLAMAV_HOST} ${CLAMAV_PORT}) ; do
@@ -172,9 +181,22 @@ check_clamav(){
   fi
 }
 
+check_rspamd() {
+  print_debug "Checking RSpamD"
+  if var_true "${ENABLE_RSPAMD}" ; then
+    sanity_var RSPAMD_HOST "RSpamd Host"
+    COUNTER=0
+    while ! (silent nc -z ${RSPAMD_HOST} ${RSPAMD_PORT}) ; do
+        sleep 5
+        let COUNTER+=5
+        print_warn "RSpamD Host '${RSPAMD_HOST}' is not accessible, retrying.. ($COUNTER seconds so far)"
+    done
+  fi
+}
+
 check_spamassassin() {
   print_debug "Checking Spamassassin"
-  if var_true $ENABLE_SPAMASSASSIN ; then
+  if var_true "${ENABLE_SPAMASSASSIN}" ; then
     sanity_var SPAMASSASSIN_HOST "SpamAssassin Host"
     COUNTER=0
     while ! (silent nc -z ${SPAMASSASSIN_HOST} ${SPAMASSASSIN_PORT}) ; do
@@ -185,35 +207,49 @@ check_spamassassin() {
   fi
 }
 
+compile_assets() {
+  print_info "Compiling Assets"
+  cd /app/
+  silent sudo -HEu postal POSTAL_SKIP_CONFIG_CHECK=1 RAILS_GROUPS=assets bundle exec rake assets:precompile
+  silent sudo -HEu postal touch /app/public/assets/.prebuilt
+}
+
+custom_assets() {
+  if [ -d /assets/custom ] ; then
+    print_warn "Custom Assets Found, Copying over top of Master"
+    silent cp -R /assets/custom/* "/app/"
+    chown -R postal:postal /app/
+  fi
+
+  ## Execute Custom Scripts
+  if [ -d /assets/custom-scripts/ ] ; then
+    print_warn "Found Custom Scripts to Execute"
+    for f in $(find /assets/custom-scripts/ -name \*.sh -type f); do
+        print_warn "Running Script ${f}"
+        chmod +x "${f}"
+        ${f}
+    done
+  fi
+}
 
 configure_logging() {
   print_debug "Configuring Logging"
-  mkdir -p ${LOG_LOCATION}
-  chown -R postal: ${LOG_LOCATION}
-  sed -i "s|<LOG_LOCATION>|${LOG_LOCATION}|g" /etc/logrotate.d/postal
-}
-
-configure_nginx(){
-  print_debug "Configuring Nginx"
-  sed -i "s|server_name localhost|server_name ${WEB_HOST}|g" /etc/nginx/conf.d/default.conf
-  if var_true "${ENABLE_TRACKING}" ; then
-    sed -i "s|<LISTEN_PORT>|${NGINX_LISTEN_PORT}|g" /etc/nginx/conf.available/tracking.conf
-    sed -i "s|<DNS_TRACK_DOMAIN>|${DNS_TRACK_DOMAIN}|g" /etc/nginx/conf.available/tracking.conf
-    if [ "${FAST_SERVER_BIND_IP}" = "0.0.0.0" ]; then
-      fast_server_bind_ip="127.0.0.1"
-    else
-      fast_server_bind_ip="${FAST_SERVER_BIND_IP}"
-    fi
-    sed -i "s|<FAST_SERVER_BIND_IP>|${fast_server_bind_ip}|g" /etc/nginx/conf.available/tracking.conf
-    sed -i "s|<FAST_SERVER_BIND_PORT>|${FAST_SERVER_BIND_PORT}|g" /etc/nginx/conf.available/tracking.conf
-    ln -s /etc/nginx/conf.available/tracking.conf /etc/nginx/conf.d/
+  mkdir -p "${LOG_PATH}"
+  chown -R postal: "${LOG_PATH}"
+  ln -sf "${LOG_PATH}" /app/log
+    create_logrotate postal-production ${LOG_PATH}/production.log none postal postal
+  if [ "${LOG_CONSOLE,,}" = "false" ] ; then
+    create_logrotate postal-cron ${LOG_PATH}/cron.log none postal postal
+    create_logrotate postal-requeuer ${LOG_PATH}/message_requeuer.log none postal postal
+    create_logrotate postal-puma-access ${LOG_PATH}/puma-access.log none postal postal
+    create_logrotate postal-puma-error ${LOG_PATH}/puma-error.log none postal postal
+    create_logrotate postal-smtp ${LOG_PATH}/smtp_server.log none postal postal
+    create_logrotate postal-worker ${LOG_PATH}/worker.log none postal postal
   fi
 }
 
 configure_postal() {
-
-   silent /app/bin/postal initialize-config
-### Create Configuration
+  ### Create Configuration
   if [ "$SETUP_TYPE" = "AUTO" ]; then
     print_notice "Configuring Postal"
     mx_array=$(echo $DNS_MX | tr "," "\n")
@@ -225,8 +261,15 @@ configure_postal() {
 EOF
                                 )
       done
-    print_debug "Writing Configuration to ${CONFIG_LOCATION}"
-    cat <<EOF > ${CONFIG_LOCATION}
+
+    if [ -z "${APP_SECRET}" ] ; then
+      rails_secret_key=$(openssl rand -hex 128 | tr -d '\n')
+    else
+      rails_secret_key=${APP_SECRET}
+    fi
+
+    print_debug "Writing Configuration to ${CONFIG_PATH}/${CONFIG_FILE}"
+    cat <<EOF > "${CONFIG_PATH}"/"${CONFIG_FILE}"
 web:
   host: ${WEB_HOST}
   protocol: ${WEB_PROTOCOL}
@@ -238,15 +281,8 @@ general:
   maximum_hold_expiry_days: ${MAX_HOLD_EXPIRY_DAYS}
   suppression_list_removal_delay: ${SUPPRESSION_LIST_EXPIRY}
   use_local_ns_for_domains: false
-
-fast_server:
-  enabled: ${ENABLE_FAST_SERVER}
-  bind_address: ${FAST_SERVER_BIND_ADDRESS}
-  port: ${FAST_SERVER_BIND_PORT}
-  ssl_port: ${FAST_SERVER_BIND_PORT_TLS}
-  proxy_protocol: ${FAST_SERVER_ENABLE_PROXY_PROTOCOL}
-  default_private_key_path: # Defaults to config/fast_server.key
-  default_tls_certificate_path: # Defaults to config/fast_server.cert
+  default_spam_threshold: ${SPAM_THRESHOLD}
+  default_spam_failure_threshold: ${SPAM_FAILURE_THRESHOLD}
 
 web_server:
   bind_address: ${WEB_BIND_IP}
@@ -263,7 +299,7 @@ main_db:
 
 logging:
   stdout: ${LOG_CONSOLE}
-  root: ${LOG_LOCATION}
+  root: ${LOG_PATH}
   max_log_file_size: ${LOG_SIZE_MAX}
 
 message_db:
@@ -286,6 +322,7 @@ workers:
 
 smtp_server:
   port: ${SMTP_SERVER_PORT}
+  bind_adress: '::'
   tls_enabled: ${SMTP_SERVER_ENABLE_TLS}
   tls_certificate_path: ${SMTP_SERVER_TLS_CERT}
   tls_private_key_path: ${SMTP_SERVER_TLS_KEY}
@@ -324,7 +361,7 @@ smtp:
 
 rails:
   environment: production
-  secret_key:
+  secret_key: ${rails_secret_key}
 
 spamd:
   enabled: ${ENABLE_SPAMASSASSIN}
@@ -336,20 +373,27 @@ clamav:
   host: ${CLAMAV_HOST}
   port: ${CLAMAV_PORT}
 
+rspamd:
+  enabled: ${ENABLE_RSPAMD}
+  host: ${RSPAMD_HOST}
+  port: ${RSPAMD_PORT}
+  ssl: ${RSPAMD_SSL}
+  password: ${RSPAMD_PASS}
+  flags: ${RSPAMD_FLAGS}
+
 smtp_client:
   open_timeout: ${SMTP_CLIENT_OPEN_TIMEOUT}
   read_timeout: ${SMTP_CLIENT_READ_TIMEOUT}
 EOF
   fi
 
-if [ "${CONFIG_LOCATION}" != "/app/config/postal.yml" ] ; then
-  ln -sf ${CONFIG_LOCATION} /app/config/postal.yml
-fi
+  if [ "${CONFIG_PATH}"/"${CONFIG_FILE}" != "/app/config/postal.yml" ] ; then
+    ln -sf "${CONFIG_PATH}"/"${CONFIG_FILE}" /app/config/postal.yml
+  fi
 
-if var_true ${LOG_AUTH_FAILURE} ; then
-  gawk -i inplace '/535 Invalid credential/ && !x {print "          log \"\\e[33m   WARN: AUTH failure for #{@ip_address}\\e[0m\""; x=1} 1' /app/lib/postal/smtp_server/client.rb
-fi
-
+  if [ -f "${CONFIG_PATH}"/"${SIGNING_KEY_FILE}" ] && [ ! -f "/app/config/signing.key" ] ; then
+    ln -sf "${CONFIG_PATH}"/"${SIGNING_KEY_FILE}" /app/config/signing.key
+  fi
 }
 
 check_rabbitmq() {
@@ -369,24 +413,25 @@ check_rabbitmq() {
 
 configure_tls() {
   print_debug "Configuring TLS"
-  if var_true $SMTP_SERVER_ENABLE_TLS ; then
+  if var_true "$SMTP_SERVER_ENABLE_TLS" ; then
       certificates ${SMTP_SERVER_TLS_CERT}
   fi
 }
 
 initialize_database() {
   print_debug "Initializing Database"
-  silent /app/bin/postal initialize
+  cd /app/
+  silent sudo -HEu postal bundle exec rake db:create db:schema:load db:seed
 
   mysql -uroot -p$DB_ROOT_PASS -h$DB_HOST -e 'GRANT ALL PRIVILEGES ON `'$DB_NAME'-%` . * to `'$DB_USER'`@`%`  IDENTIFIED BY "'$DB_PASS'";'
-    print_notice "Creating Administrative User"
+  print_notice "Creating Administrative User"
   if [ ! -n "${ADMIN_EMAIL}" ]; then
     print_warn "No Admin Email entered, setting default email login to 'postal@example.com'"
     ADMIN_EMAIL="postal@example.com"
   fi
   if [ ! -n "${ADMIN_PASS}" ]; then
-    print_warn "WARNING: No Admin Pass entered, setting default password to 'postal'"
-    ADMIN_PASS="postal"
+    print_warn "WARNING: No Admin Pass entered, setting default password to 'PostalMailServer'"
+    ADMIN_PASS="PostalMailServer"
   fi
   if [ ! -n "${ADMIN_FNAME}" ]; then
     print_warn "No Admin First Name entered, setting default to 'Postal'"

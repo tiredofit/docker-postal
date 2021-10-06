@@ -1,3 +1,14 @@
+## 3.0.0 2021-10-06 <dave at tiredofit dot ca>
+
+   ### Added
+      - Updated to support new Postal 2.x release
+      - Alpine 3.14
+
+   ### Changed
+      - Changes to environment variables, mapped folders, and persistent configuration files. See README.md
+      - Upgrading from existing install is possible without much effort, just madke sure to map /config and /logs
+
+
 ## 2.1.6 2020-09-27 <dave at tiredofit dot ca>
 
    ### Changed

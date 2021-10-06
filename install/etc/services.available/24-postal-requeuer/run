@@ -1,0 +1,13 @@
+#!/usr/bin/with-contenv bash
+
+source /assets/functions/00-container
+prepare_service defaults 20-postal
+PROCESS_NAME=postal-requeuer
+
+check_container_initialized
+check_service_initialized init 20-postal
+liftoff
+
+print_start "Starting postal ${POSTAL_VERSION} Requeuer"
+cd /app/
+sudo -HEu postal bundle exec rake postal:requeuer

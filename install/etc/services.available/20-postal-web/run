@@ -1,0 +1,17 @@
+#!/usr/bin/with-contenv bash
+
+source /assets/functions/00-container
+prepare_service defaults 20-postal
+PROCESS_NAME=postal-web
+
+check_container_initialized
+check_service_initialized init 20-postal
+liftoff
+
+if [ "${LOG_CONSOLE,,}" = "false" ]; then
+    log_redirect="--redirect-stdout ${LOG_PATH}/puma-access.log --redirect-stderr ${LOG_PATH}/puma-error.log"
+fi
+
+print_start "Starting postal ${POSTAL_VERSION} Web Server"
+cd /app/
+sudo -HEu postal bundle exec puma -C config/puma.rb ${log_redirect}
