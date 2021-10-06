@@ -416,6 +416,8 @@ configure_tls() {
   if var_true "$SMTP_SERVER_ENABLE_TLS" ; then
       certificates ${SMTP_SERVER_TLS_CERT}
   fi
+  chown postal:postal ${SMTP_SERVER_TLS_CERT}
+  chown postal:postal ${SMTP_SERVER_TLS_KEY}
 }
 
 initialize_database() {

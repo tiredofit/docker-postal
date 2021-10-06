@@ -1,3 +1,9 @@
+## 3.0.1 2021-10-06 <dave at tiredofit dot ca>
+
+   ### Changed
+      - Change the Certificate permissions
+
+
 ## 3.0.0 2021-10-06 <dave at tiredofit dot ca>
 
    ### Added
