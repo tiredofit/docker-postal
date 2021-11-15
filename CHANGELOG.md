@@ -1,3 +1,9 @@
+## 3.0.3 2021-11-15 <dave at tiredofit dot ca>
+
+   ### Added
+      - Postal 2.1.0
+
+
 ## 3.0.2 2021-10-06 <dave at tiredofit dot ca>
 
    ### Changed

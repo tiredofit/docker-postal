@@ -1,7 +1,7 @@
 FROM docker.io/tiredofit/alpine:3.14
 LABEL maintainer="Dave Conroy (github.com/tiredofit)"
 
-ENV POSTAL_VERSION=master \
+ENV POSTAL_VERSION=2.1.0 \
     POSTAL_REPO_URL=https://github.com/postalhq/postal \
     POSTAL_CONFIG_ROOT=/app/config/ \
     CONTAINER_ENABLE_MESSAGING=FALSE \
@@ -17,6 +17,7 @@ RUN set -x && \
             build-base \
             git \
             mariadb-dev \
+            nodejs \
             ruby-dev \
             && \
     \
@@ -24,14 +25,13 @@ RUN set -x && \
             expect \
             fail2ban \
             gawk \
-            nodejs \
             mariadb-client \
             mariadb-connector-c \
             openssl \
             ruby \
             ruby-bigdecimal \
-            ruby-io-console \
             ruby-etc \
+            ruby-io-console \
             && \
     \
     gem install bundler -v 1.17.2 && \
