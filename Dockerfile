@@ -17,7 +17,6 @@ RUN set -x && \
             build-base \
             git \
             mariadb-dev \
-            nodejs \
             ruby-dev \
             && \
     \
@@ -28,6 +27,7 @@ RUN set -x && \
             mariadb-client \
             mariadb-connector-c \
             openssl \
+            nodejs \
             ruby \
             ruby-bigdecimal \
             ruby-etc \
