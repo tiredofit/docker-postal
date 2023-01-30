@@ -5,7 +5,7 @@ services:
     image: tiredofit/postal:latest
     container_name: postal-app
     ports:
-      - 25:2525
+      - 25:25
     labels:
       - traefik.enable=true
       - traefik.frontend.rule=Host:postal.example.com
